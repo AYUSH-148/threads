@@ -7,7 +7,7 @@ import { fetchUser } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-async function Page({ params }: { params: { id: string } }) {
+export async function Page({ params }: { params: { id: string } }) {
     const user = await currentUser();
     if (!user) return null;
 
