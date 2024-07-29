@@ -2,6 +2,9 @@
 const nextConfig = {
     experimental:{
         serverComponentsExternalPackages:["mongoose"],
+        serverActions: {
+          bodySizeLimit: '10mb',
+        },
     },
     images: {
         remotePatterns: [
@@ -21,8 +24,13 @@ const nextConfig = {
             protocol: "https",
             hostname: "placehold.co",
           },
+          {
+            protocol: "https",
+            hostname: "utfs.io", // Add the utfs.io hostname here
+          },
         ],
       },
+      
 };
 
 export default nextConfig;
