@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-
+import ThreadsTab from "@/components/ThreadsTab";
 import { profileTabs } from "@/constants";
 import { fetchUser } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
@@ -52,7 +52,7 @@ async function Page({ params }: { params: { id: string } }) {
                             value={tab.value}
                             className='w-full text-light-1'
                         >
-                            {/* @ts-ignore */}
+                          
                             <ThreadsTab
                                 currentUserId={user.id}
                                 accountId={userInfo.id}
