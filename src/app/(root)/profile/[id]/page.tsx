@@ -7,7 +7,7 @@ import { fetchUser } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export async function Page({ params }: { params: { id: string } }) {
+async function Page({ params }: { params: { id: string } }) {
     const user = await currentUser();
     if (!user) return null;
 
@@ -65,3 +65,5 @@ export async function Page({ params }: { params: { id: string } }) {
         </section>
     )
 }
+
+export default Page

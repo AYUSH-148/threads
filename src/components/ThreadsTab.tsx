@@ -2,6 +2,7 @@ import { fetchUserPosts } from '@/lib/actions/user.action'
 import { redirect } from 'next/navigation'
 import React from 'react'
 import ThreadCard from './ThreadCard'
+import { fetchCommunityPosts } from '@/lib/actions/community.actions'
 
 interface Result {
     name: string,
@@ -39,8 +40,8 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabP
 
     let result: Result;
     if (accountType === "Community") {
-        result = await fetchUserPosts(accountId) //---> remove it
-        //---   Community  -----//
+        result = await fetchCommunityPosts(accountId);
+   
     } else {
         result = await fetchUserPosts(accountId);
     }
