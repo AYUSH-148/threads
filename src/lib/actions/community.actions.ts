@@ -7,7 +7,7 @@ import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
 
 export async function createCommunity(
-    id:string,name:string,username:string,image:string,bio:string,createdById:StringConstructor
+    id:string | number | Record<string, string>[],name:string | number | Record<string, string>[],username:string,image:string,bio:string,createdById:StringConstructor
 ){
     try {
         connectToDb();
@@ -46,7 +46,7 @@ export async function fetchCommunityDetails(id:string){
     }
 }
 
-export async function fetchCommunityPosts(id: string) {
+export async function fetchCommunityPosts(id: string | number | Record<string, string>[]) {
     try {
       connectToDb();
   
@@ -202,7 +202,7 @@ export async function fetchCommunityPosts(id: string) {
   }
   export async function updateCommunityInfo(
     communityId: string,
-    name: string,
+    name: string | number | Record<string, string>[],
     username: string,
     image: string
   ) {
