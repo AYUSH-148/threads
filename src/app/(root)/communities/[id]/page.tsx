@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fetchCommunityDetails } from "@/lib/actions/community.actions";
 import ProfileHeader from "@/components/ProfileHeader";
 import UserCard from "@/components/UserCard";
+import ThreadsTab from "@/components/ThreadsTab";
 
 async function Page({ params }: { params: { id: string } }) {
   const user = await currentUser();
@@ -52,7 +53,7 @@ async function Page({ params }: { params: { id: string } }) {
           </TabsList>
 
           <TabsContent value='threads' className='w-full text-light-1'>
-            {/* @ts-ignore */}
+
             <ThreadsTab
               currentUserId={user.id}
               accountId={communityDetails._id}
