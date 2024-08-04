@@ -43,7 +43,7 @@ const PostThread = ({ userId }: ThreadProps) => {
         }
 
         const data = await response.json();
-        setMembers(data);
+        setMembers(data.data);
         console.log("Invitations -", data);
       } catch (error) {
         console.error("Failed to fetch members:", error);
