@@ -3,9 +3,10 @@ import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import ThreadsTab from "@/components/ThreadsTab";
 import { profileTabs } from "@/constants";
-import { fetchUser } from "@/lib/actions/user.action";
+import { fetchUser, getActivity } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Link from "next/link";
 
 async function Page({ params }: { params: { id: string } }) {
     const user = await currentUser();
@@ -14,6 +15,7 @@ async function Page({ params }: { params: { id: string } }) {
     const userInfo = await fetchUser(params.id);
     if (!userInfo?.onboarded) redirect("/onboarding");
 
+    const activity = await getActivity(userInfo._id);
     return (
         <section>
             <ProfileHeader
@@ -52,14 +54,43 @@ async function Page({ params }: { params: { id: string } }) {
                             value={tab.value}
                             className='w-full text-light-1'
                         >
-                          
-                            <ThreadsTab
-                                currentUserId={user.id}
-                                accountId={userInfo.id}
-                                accountType='User'
-                            />
+                            {tab.value === "threads" && (
+                                <ThreadsTab
+                                    currentUserId={user.id}
+                                    accountId={userInfo.id}
+                                    accountType='User'
+                                />
+                            )}
+                            {tab.value === "replies" && (
+                                <section className="flex flex-col gap-3 mt-4 ">
+                                    {activity.length > 0 ? (
+                                        activity.map((activity) => (
+                                            <Link key={activity._id} href={`/thread/${activity.parentId}`}>
+                                                <article className='flex items-center gap-2 bg-dark-2 rounded-md px-7 py-3'>
+                                                    <Image
+                                                        src={activity.author.image}
+                                                        alt='user_logo'
+                                                        width={36}
+                                                        height={36}
+                                                        className='rounded-full'
+                                                    />
+                                                    <p className='!text-small-regular text-light-1'>
+                                                        <span className='mr-1 text-primary-500'>
+                                                            {activity.author.name}
+                                                        </span>{" "}
+                                                        replied to your thread
+                                                    </p>
+                                                </article>
+                                            </Link>
+                                        ))
+                                    ) : (
+                                        <p className='!text-base-regular text-light-3 mt-10 mx-auto'>No activity yet</p>
+                                    )}
+                                </section>
+                            )}
                         </TabsContent>
                     ))}
+
                 </Tabs>
             </div>
         </section>

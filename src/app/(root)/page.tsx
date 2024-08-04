@@ -3,14 +3,17 @@ import ThreadCard from "@/components/ThreadCard";
 import { fetchPosts } from "@/lib/actions/thread.action";
 import { fetchUser } from "@/lib/actions/user.action";
 import { currentUser } from "@clerk/nextjs";
-import Image from "next/image";
+
 import { redirect } from "next/navigation";
+import { useOrganization } from "@clerk/nextjs";
+
 
 export default async function Home({
   searchParams,
 }: {
   searchParams: { [key: string]: string | undefined };
 }) {
+  console.log(useOrganization)
   const user = await currentUser();
   if (!user) return null;
 
@@ -21,7 +24,7 @@ export default async function Home({
     searchParams.page ? +searchParams.page : 1,
     30
   );
-
+ 
   return (
     <>
       <h1 className='head-text text-left'>Home</h1>
