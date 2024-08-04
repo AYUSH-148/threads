@@ -81,8 +81,8 @@ const PostThread = ({ userId }: ThreadProps) => {
   return (
     <>
       {members && members.length > 0 ?
-        members.map(() => {
-          return (<p className="text-white">
+        members.map((val,key) => {
+          return (<p className="text-white" key={key}>
             akfmpamfp
           </p>)
         }) : <p className="text-white">sfasf</p>
