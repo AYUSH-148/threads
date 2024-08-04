@@ -21,19 +21,19 @@ const PostThread = ({ userId }: ThreadProps) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { isLoaded,organization} = useOrganization();
+  const { organization} = useOrganization();
 
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
     const fetchMembers = async () => {
-      if (!isLoaded || !organization) return;
+      if ( !organization) return;
 
-      const bearerToken = process.env.NEXT_PUBLIC_CLERK_SECRET_KEY;
+      const bearerToken = process.env.CLERK_SECRET_KEY;
       try {
         const response = await fetch(`https://api.clerk.com/v1/organizations/${organization.id}/memberships`, {
           headers: {
-            'Authorization': `Bearer ${bearerToken}`,
+            'Authorization': `  \"Bearer \u003c${bearerToken}\u003e`,
             'Content-Type': 'application/json'
           }
         });
@@ -41,17 +41,17 @@ const PostThread = ({ userId }: ThreadProps) => {
         if (!response.ok) {
           throw new Error(`Error fetching invites: ${response.statusText}`);
         }
-
+        console.log("lanakjsfbjafoasnfonasdfonspofamna")
         const data = await response.json();
         setMembers(data.data);
-        console.log("Invitations -", data);
+        console.log("Members-", data);
       } catch (error) {
         console.error("Failed to fetch members:", error);
       }
     };
 
     fetchMembers();
-  }, [isLoaded, organization]);
+  }, [ organization]);
 
   const form = useForm<z.infer<typeof ThreadValidation>>({
     resolver: zodResolver(ThreadValidation),
@@ -82,8 +82,8 @@ const PostThread = ({ userId }: ThreadProps) => {
     <>
       {members && members.length > 0 ?
         members.map((val,key) => {
-          return (<p className="text-white" key={key}>
-            akfmpamfp
+          return (<p className="text-white bg-red-100" key={key}>
+            akfmpamfp{members.length}
           </p>)
         }) : <p className="text-white">sfasf</p>
       }
