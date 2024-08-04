@@ -164,3 +164,15 @@
   white-space: pre-wrap;
 }
 
+.react-select__control {
+  background-color: var(--bg-dark-3);
+  border-color: var(--border-dark-4);
+  color: var(--text-light-1);
+}
+
+.react-select__menu {
+  background-color: var(--bg-dark-3);
+  color: var(--text-light-1);
+}
+
+

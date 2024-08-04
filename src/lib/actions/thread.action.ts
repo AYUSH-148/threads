@@ -45,9 +45,10 @@ interface ThreadParams {
     author: string,
     communityId: string | null
     path: string
+    tags: string[] | null
 }
 
-export async function createThread({ text, author, communityId, path }: ThreadParams) {
+export async function createThread({ text, author, communityId, path ,tags}: ThreadParams) {
     try {
         connectToDb();
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result

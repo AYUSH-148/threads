@@ -10,7 +10,7 @@ import { connectToDb } from "../mongoose";
 
 export async function createCommunity(
   id: string,
-  name: string,
+  name: string ,
   username: string,
   image: string,
   bio: string,

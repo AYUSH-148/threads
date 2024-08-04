@@ -2,7 +2,11 @@ import * as z from "zod";
 
 export const ThreadValidation = z.object({
     thread: z.string().min(3,"Minimum 3 characters."),
-    accountId: z.string() 
+    accountId: z.string() ,
+    tags: z.array(z.object({
+        value: z.string(),
+        label: z.string()
+    })).optional()
 });
 
 export const CommentValidation = z.object({
