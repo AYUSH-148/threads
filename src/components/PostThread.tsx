@@ -11,6 +11,7 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import Select from 'react-select';
 import { useEffect, useState } from "react";
+import { fetchFriends } from "@/lib/actions/user.action";
 
 
 interface ThreadProps {
@@ -21,37 +22,19 @@ const PostThread = ({ userId }: ThreadProps) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { organization} = useOrganization();
+  const { organization } = useOrganization();
 
-  const [members, setMembers] = useState([]);
+  const [members, setMembers] = useState([{
+    username:"",id:""
+  }]);
 
   useEffect(() => {
     const fetchMembers = async () => {
-      if ( !organization) return;
-
-      const bearerToken = process.env.CLERK_SECRET_KEY;
-      try {
-        const response = await fetch(`https://api.clerk.com/v1/organizations/${organization.id}/memberships`, {
-          headers: {
-            'Authorization': `  \"Bearer \u003c${bearerToken}\u003e`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error fetching invites: ${response.statusText}`);
-        }
-        console.log("lanakjsfbjafoasnfonasdfonspofamna")
-        const data = await response.json();
-        setMembers(data.data);
-        console.log("Members-", data);
-      } catch (error) {
-        console.error("Failed to fetch members:", error);
-      }
-    };
-
-    fetchMembers();
-  }, [ organization]);
+      const usersList = await fetchFriends(userId);
+      setMembers(usersList);
+    }
+    fetchMembers()
+  }, [userId])
 
   const form = useForm<z.infer<typeof ThreadValidation>>({
     resolver: zodResolver(ThreadValidation),
@@ -68,25 +51,19 @@ const PostThread = ({ userId }: ThreadProps) => {
       author: userId,
       communityId: organization ? organization.id : null,
       path: pathname,
-      tags: values.tags ? values.tags.map((tag: any) => tag.value) : null
+      tags: values.tags ? values.tags.map((tag) => tag.value) : null
     });
     router.push("/");
   };
 
-  const categories = [
-    { value: 'General', label: 'General' },
-    { value: 'Feedback', label: 'Feedback' },
-    { value: 'Support', label: 'Support' }
-  ];
+  const categories = members.map(member => ({
+    value: `${member.id}-${member.username}`,
+    label: member.username
+  }));
   return (
     <>
-      {members && members.length > 0 ?
-        members.map((val,key) => {
-          return (<p className="text-white bg-red-100" key={key}>
-            akfmpamfp{members.length}
-          </p>)
-        }) : <p className="text-white">sfasf</p>
-      }
+
+     
       <Form {...form}>
 
         <form

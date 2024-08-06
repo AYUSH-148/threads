@@ -5,7 +5,7 @@ import Community from "../models/community.model";
 import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
 import Thread from "../models/thread.model";
-import { FilterQuery, SortOrder } from "mongoose";
+import mongoose, { FilterQuery, SortOrder } from "mongoose";
 
 export async function fetchUser(userId: String) {
     try {
@@ -100,25 +100,25 @@ export async function fetchUsers({
 }: SearchQuery) {
     try {
         connectToDb();
-        const skipAmount = (pageNumber-1)*pageSize;
-        const regex = new RegExp(searchString,"i");
+        const skipAmount = (pageNumber - 1) * pageSize;
+        const regex = new RegExp(searchString, "i");
 
-        const query:FilterQuery<typeof User>={
-            id:{$ne: userId}
+        const query: FilterQuery<typeof User> = {
+            id: { $ne: userId }
         }
 
-        if(searchString.trim()!==""){
-            query.$or=[
-                {username:{$regex: regex}},
-                {name:{$regex:regex}}
+        if (searchString.trim() !== "") {
+            query.$or = [
+                { username: { $regex: regex } },
+                { name: { $regex: regex } }
             ]
         }
         const sortOptions = { createdAt: sortBy };
         const usersQuery = User.find(query)
-        .sort(sortOptions)
-        .skip(skipAmount)
-        .limit(pageSize);
-        
+            .sort(sortOptions)
+            .skip(skipAmount)
+            .limit(pageSize);
+
         const totalUsersCount = await User.countDocuments(query);
         const users = await usersQuery.exec();
         const isNext = totalUsersCount > skipAmount + users.length;
@@ -133,26 +133,54 @@ export async function fetchUsers({
 
 export async function getActivity(userId: string) {
     try {
-      connectToDb();
-  
-      const userThreads = await Thread.find({ author: userId });
-   
-      const childThreadIds = userThreads.reduce((acc, userThread) => {
-        return acc.concat(userThread.children);
-      }, []);
-  
-      const replies = await Thread.find({
-        _id: { $in: childThreadIds },
-        author: { $ne: userId },  
-      }).populate({
-        path: "author",
-        model: User,
-        select: "name image _id",
-      });
-  
-      return replies;
+        connectToDb();
+
+        const userThreads = await Thread.find({ author: userId });
+
+        const childThreadIds = userThreads.reduce((acc, userThread) => {
+            return acc.concat(userThread.children);
+        }, []);
+
+        const replies = await Thread.find({
+            _id: { $in: childThreadIds },
+            author: { $ne: userId },
+        }).populate({
+            path: "author",
+            model: User,
+            select: "name image _id",
+        });
+
+        return replies;
     } catch (error) {
-      console.error("Error fetching replies: ", error);
-      throw error;
+        console.error("Error fetching replies: ", error);
+        throw error;
+    }
+}
+
+export async function fetchFriends(userId: string) {
+    try {
+        connectToDb();
+        const communitiesList = await Community.find({
+            members: new mongoose.Types.ObjectId(userId)
+        });
+
+        const communityIds = communitiesList.map(community => community._id);
+
+        const users = await User.find({
+            communities: { $in: communityIds }
+        });
+
+        const userList = users
+            .filter(user => user._id.toString() !== userId)
+            .map(user => ({
+                username: user.username,
+                id:user.id
+            }));
+
+        return userList;
+
+    } catch (error) {
+        console.error("Error fetching usernames: ", error);
+        throw error;
     }
 }

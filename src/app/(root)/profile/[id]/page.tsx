@@ -7,6 +7,7 @@ import { fetchUser, getActivity } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+import TagsComp from "@/components/TagsComp";
 
 async function Page({ params }: { params: { id: string } }) {
     const user = await currentUser();
@@ -87,6 +88,10 @@ async function Page({ params }: { params: { id: string } }) {
                                         <p className='!text-base-regular text-light-3 mt-10 mx-auto'>No activity yet</p>
                                     )}
                                 </section>
+                            )}
+
+                            {tab.value==="tags" && (
+                                <TagsComp userId={params.id}/>
                             )}
                         </TabsContent>
                     ))}

@@ -54,7 +54,7 @@ export async function createThread({ text, author, communityId, path ,tags}: Thr
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result
 
         const createThread = await Thread.create({
-            text, author, community: communityIdObject
+            text, author, community: communityIdObject ,tags
         })
 
         await User.findByIdAndUpdate(author, {
