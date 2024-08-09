@@ -6,30 +6,32 @@ import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
 
+
+
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
     connectToDb();
 
-    const skipAmount = (pageNumber-1)*pageSize;
+    const skipAmount = (pageNumber - 1) * pageSize;
     const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
-    .sort({ createdAt: "desc" })
-    .skip(skipAmount)
-    .limit(pageSize)
-    .populate({
-      path: "author",
-      model: User,
-    })
-    .populate({
-      path: "community",
-      model: Community,
-    })
-    .populate({
-      path: "children", 
-      populate: {
-        path: "author", 
-        model: User,
-        select: "_id name parentId image", 
-      },
-    });
+        .sort({ createdAt: "desc" })
+        .skip(skipAmount)
+        .limit(pageSize)
+        .populate({
+            path: "author",
+            model: User,
+        })
+        .populate({
+            path: "community",
+            model: Community,
+        })
+        .populate({
+            path: "children",
+            populate: {
+                path: "author",
+                model: User,
+                select: "_id name parentId image",
+            },
+        }).lean();
 
     const totalPostsCount = await Thread.countDocuments({
         parentId: { $in: [null, undefined] },
@@ -37,7 +39,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
     const posts = await postsQuery.exec();
 
     const isNext = totalPostsCount > skipAmount + posts.length;
-    return {posts,isNext}
+    return { posts, isNext }
 }
 
 interface ThreadParams {
@@ -48,13 +50,13 @@ interface ThreadParams {
     tags: string[] | null
 }
 
-export async function createThread({ text, author, communityId, path ,tags}: ThreadParams) {
+export async function createThread({ text, author, communityId, path, tags }: ThreadParams) {
     try {
         connectToDb();
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result
 
         const createThread = await Thread.create({
-            text, author, community: communityIdObject ,tags
+            text, author, community: communityIdObject, tags
         })
 
         await User.findByIdAndUpdate(author, {
@@ -100,7 +102,7 @@ export async function fetchThreadById(id: string) {
                     }
                 }
             ]
-        }).exec();
+        }).lean().exec();
         return thread
     } catch (error) {
         console.error("Error while fetching thread:", error);
@@ -157,10 +159,10 @@ export async function deleteThread(id: string, path: string) {
         await Community.updateMany(
             { _id: { $in: Array.from(uniqueCommunityIds) } },
             { $pull: { threads: { $in: descendantThreadIds } } }
-          );
-      
-          revalidatePath(path);
-    } catch (error:any) {
+        );
+
+        revalidatePath(path);
+    } catch (error: any) {
         throw new Error(`Failed to delete thread: ${error.message}`);
     }
 }
@@ -178,31 +180,81 @@ async function fetchAllChildThreads(threadId: string): Promise<any[]> {
 }
 
 export async function addCommentToThread(
-    threadId:string,
-    commentText:string,
-    userId:string,
-    path:string
-){
+    threadId: string,
+    commentText: string,
+    userId: string,
+    path: string
+) {
     connectToDb();
     try {
         const originalThread = await Thread.findById(threadId);
-        if(!originalThread){
+        if (!originalThread) {
             throw new Error("Thread not found");
         }
 
         const commentThread = new Thread({
-            text:commentText,
-            parentId:threadId,
-            author:userId
+            text: commentText,
+            parentId: threadId,
+            author: userId
         })
         const savedCommentThread = await commentThread.save();
 
         originalThread.children.push(savedCommentThread._id);
-        
+
         await originalThread.save();
         revalidatePath(path)
-    } catch (err:any) {
+    } catch (err: any) {
         console.error("Error while adding comment:", err);
         throw new Error("Unable to add comment");
     }
 }
+
+export async function handleLikeToThread(threadId:string,userId:string,path:string){
+    try {
+        connectToDb();
+        const thread = await Thread.findById(threadId);
+        if (!thread) {
+            throw new Error("Thread not found");
+        }
+        if(thread.likes.includes(userId)){
+            const likeIndex = thread.likes.indexOf(userId);
+            if (likeIndex === -1) {
+                throw new Error("Like not found");
+            } 
+            thread.likes.splice(likeIndex, 1);
+            console.log("deleted")
+        }else{
+            thread.likes.push(userId)
+            console.log("saved")
+        }
+        
+        await thread.save();
+        
+        revalidatePath(path);
+    } catch (error) {
+        console.error("Error while adding like", error);
+        throw new Error("Unable to add like");
+    }
+}
+
+export async function fetchtaggedByUsers(userId: string) {
+
+    try {
+        await connectToDb(); 
+        const threadsList = await Thread.find({ tags: userId }).select("_id createdAt")
+        .populate({
+            path: 'author',
+            model: User,
+            select: '_id id username image', 
+        })
+        .exec()
+
+        console.log(threadsList)
+      
+        return threadsList;
+    } catch (err) {
+        console.error("Error while fetching tags", err);
+        throw new Error("Unable to fetch tagged data");
+    }
+}
+

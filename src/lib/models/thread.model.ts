@@ -6,12 +6,8 @@ const threadSchema = new mongoose.Schema({
     community:{
         type:mongoose.Schema.Types.ObjectId, ref:"Community"
     },
-    tags:[
-        {
-            type:String,
-           
-        }
-    ],
+    tags:[ { type:String, } ],
+    likes:[{ type:String }],
     createdAt:{
         type:Date, default:Date.now
     },
