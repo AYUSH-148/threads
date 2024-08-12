@@ -51,7 +51,8 @@ const PostThread = ({ userId }: ThreadProps) => {
       author: userId,
       communityId: organization ? organization.id : null,
       path: pathname,
-      tags: values.tags ? values.tags.map((tag) => tag.value) : null
+      tags: [""]
+      // tags: values.tags ? values.tags.map((tag) => tag.value) : null
     });
     router.push("/");
   };

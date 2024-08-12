@@ -5,6 +5,7 @@ import Community from "../models/community.model";
 import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
+import mongoose from "mongoose";
 
 
 
@@ -209,33 +210,38 @@ export async function addCommentToThread(
     }
 }
 
-export async function handleLikeToThread(threadId:string,userId:string,path:string){
+export async function handleLikeToThread(threadId: string, userId: string, path: string) {
     try {
         connectToDb();
+
         const thread = await Thread.findById(threadId);
         if (!thread) {
             throw new Error("Thread not found");
         }
-        if(thread.likes.includes(userId)){
-            const likeIndex = thread.likes.indexOf(userId);
-            if (likeIndex === -1) {
-                throw new Error("Like not found");
-            } 
+
+        const likeIndex = thread.likes.findIndex(
+            (like:any) => like.userId.toString() === userId
+        );
+
+        if (likeIndex !== -1) { 
             thread.likes.splice(likeIndex, 1);
-            console.log("deleted")
-        }else{
-            thread.likes.push(userId)
-            console.log("saved")
+            console.log("Like removed");
+
+        } else {
+
+            thread.likes.push({ userId: new mongoose.Types.ObjectId(userId),threadId:thread.id, date: new Date() });
+            console.log("Like added");
         }
-        
+
         await thread.save();
-        
+
         revalidatePath(path);
     } catch (error) {
         console.error("Error while adding like", error);
         throw new Error("Unable to add like");
     }
 }
+
 
 export async function fetchtaggedByUsers(userId: string) {
 
@@ -246,7 +252,7 @@ export async function fetchtaggedByUsers(userId: string) {
             path: 'author',
             model: User,
             select: '_id id username image', 
-        })
+        }).lean()
         .exec()
 
         console.log(threadsList)

@@ -28,6 +28,8 @@ interface Result {
                 image: string
             }
         }[]
+        likes: string[]
+        tags: string[]
     }[]
 }
 
@@ -35,8 +37,9 @@ interface ThreadsTabProps {
     currentUserId: string,
     accountId: string,
     accountType: string
+    currUserId2:string
 }
-const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabProps) => {
+const ThreadsTab = async ({ currentUserId, accountId, accountType,currUserId2 }: ThreadsTabProps) => {
 
     let result: Result;
     if (accountType === "Community") {
@@ -50,13 +53,13 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabP
         redirect("/")
     }
 
-
     return (
         <section className='mt-9 flex flex-col gap-10'>
         {result.threads.map((thread) => (
           <ThreadCard
             key={thread._id}
             id={thread._id}
+            currUserId2={currUserId2}
             currentUser={currentUserId}
             parentId={thread.parentId}
             content={thread.text}
@@ -76,6 +79,8 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabP
             }
             createdAt={thread.createdAt}
             comments={thread.children}
+            tags={thread.tags}
+            likes={thread.likes}
           />
         ))}
       </section>

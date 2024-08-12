@@ -30,7 +30,7 @@ async function Page({ params }: { params: { id: string } }) {
             <div className='mt-9'>
                 <Tabs defaultValue='threads' className='w-full'>
                     <TabsList className='tab'>
-                        {profileTabs.map((tab) => (
+                        {profileTabs.map((tab:any) => (
                             <TabsTrigger key={tab.label} value={tab.value} className='tab'>
                                 <Image
                                     src={tab.icon}
@@ -58,15 +58,16 @@ async function Page({ params }: { params: { id: string } }) {
                             {tab.value === "threads" && (
                                 <ThreadsTab
                                     currentUserId={user.id}
+                                    currUserId2={userInfo._id}
                                     accountId={userInfo.id}
                                     accountType='User'
                                 />
                             )}
                             {tab.value === "replies" && (
                                 <section className="flex flex-col gap-3 mt-4 ">
-                                    {activity.length > 0 ? (
-                                        activity.map((activity) => (
-                                            <Link key={activity._id} href={`/thread/${activity.parentId}`}>
+                                    {activity.replies.length > 0 ? (
+                                        activity.replies.map((activity) => (
+                                            <Link key={activity.id} href={`/thread/${activity.parentId}`}>
                                                 <article className='flex items-center gap-2 bg-dark-2 rounded-md px-7 py-3'>
                                                     <Image
                                                         src={activity.author.image}
@@ -90,8 +91,8 @@ async function Page({ params }: { params: { id: string } }) {
                                 </section>
                             )}
 
-                            {tab.value==="tags" && (
-                                <TagsComp userId={params.id}/>
+                            {tab.value==="tagged" && (
+                                <TagsComp tagStr={`${params.id}-${userInfo.username}`}/>
                             )}
                         </TabsContent>
                     ))}

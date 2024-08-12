@@ -5,7 +5,7 @@ import { fetchUser } from "@/lib/actions/user.action";
 import { currentUser } from "@clerk/nextjs";
 
 import { redirect } from "next/navigation";
-import { useOrganization } from "@clerk/nextjs";
+
 
 
 export default async function Home({
@@ -13,7 +13,7 @@ export default async function Home({
 }: {
   searchParams: { [key: string]: string | undefined };
 }) {
-  console.log(useOrganization)
+
   const user = await currentUser();
   if (!user) return null;
 
@@ -24,7 +24,7 @@ export default async function Home({
     searchParams.page ? +searchParams.page : 1,
     30
   );
- 
+
   return (
     <>
       <h1 className='head-text text-left'>Home</h1>
@@ -35,24 +35,29 @@ export default async function Home({
         ) : (
           <>
             {result.posts.map((post) => (
-              <ThreadCard
-                key={post._id}
-                id={post._id}
-                currentUser={user.id}
-                parentId={post.parentId}
-                content={post.text}
-                author={post.author}
-                community={post.community}
-                createdAt={post.createdAt}
-                comments={post.children}
-                istags= {post.tags.length>0}
-                tags = {post.tags}
-              />
-            ))}
+              <div key={post.id}>
+                <ThreadCard
+                  //@ts-ignore
+                  id={post._id}
+                  currentUser={user.id}
+                  currUserId2={userInfo._id}
+                  parentId={post.parentId}
+                  content={post.text}
+                  author={post.author}
+                  community={post.community}
+                  createdAt={post.createdAt}
+                  comments={post.children}
+                  istags={post.tags.length > 0}
+                  tags={post.tags}
+                  likes={post.likes}
+                />
+         
+              </div>
+               ))}
           </>
         )}
       </section>
-      
+
       <Pagination
         path='/'
         pageNumber={searchParams?.page ? +searchParams.page : 1}

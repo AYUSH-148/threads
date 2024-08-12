@@ -1,12 +1,15 @@
+
 import Link from 'next/link'
 import React from 'react'
 import Image from 'next/image'
 import DeleteThread from './DeleteThread'
 import { formatDateString } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+import LikeThreadComp from './LikeThreadComp'
 interface ThreadCardProps {
     id: string,
     currentUser: string,
+    currUserId2: string,
     parentId: string | null,
     content: string,
     author: {
@@ -24,10 +27,14 @@ interface ThreadCardProps {
     isComment?: boolean
     istags?: boolean
     tags?: string[]
+    likes: string[]
 }
 const ThreadCard = ({
-    id, author, currentUser, comments, community, isComment, createdAt, content, parentId, istags, tags
+    id, author, currUserId2, currentUser, comments, community, isComment, createdAt, content, parentId, istags, tags, likes
 }: ThreadCardProps) => {
+    //@ts-ignore
+    const userIds = likes.map(like => like.userId) || [];
+    console.log("id",userIds)
     return (
         <article className={`flex w-full flex-col rounded-xl ${isComment ? "px-0 xs:px-7" : "bg-dark-2 p-7"}`}>
             <div className='flex items-start justify-between'>
@@ -50,16 +57,12 @@ const ThreadCard = ({
                             </h4>
                         </Link>
                         <p className='my-2 text-small-regular text-light-2 content-text'>{content} </p>
-                        <div className={`${isComment && "mb-10"} mt-5 flex flex-col gap-3`}>
+                        <div className={`${isComment && "mb-10"} mt-2 flex flex-col gap-3`}>
                             <div className='flex justify-between items-center'>
                                 <div className='flex gap-3.5'>
-                                    <Image
-                                        src='/assets/heart-gray.svg'
-                                        alt='heart'
-                                        width={24}
-                                        height={24}
-                                        className='cursor-pointer object-contain'
-                                    />
+
+                                    <LikeThreadComp threadId={id} userId={currUserId2} likes={userIds}/>
+
                                     <Link href={`/thread/${id}`}>
                                         <Image
                                             src='/assets/reply.svg'
@@ -78,10 +81,10 @@ const ThreadCard = ({
                                         className='cursor-pointer object-contain'
                                     />
                                 </div>
-                                {istags && <Popover>
+                                {istags  && <Popover>
                                     <PopoverTrigger>
-                                        <div className='text-gray-1 py-1 cursor-pointer hover:text-gray-400 md:mr-4'>
-                                            @ tags
+                                        <div className='text-gray-600 py-0.5 text-[14px] cursor-pointer hover:text-gray-500  md:mr-4'>
+                                            T@gs
                                         </div>
                                     </PopoverTrigger>
                                     <PopoverContent>
@@ -89,7 +92,7 @@ const ThreadCard = ({
                                             {tags?.map((tag) => {
                                                 return (
                                                     <Link href={`/profile/${tag.split("-")[0]}`} key={tag} className='truncate whitespace-nowrap w-full  cursor-pointer'>
-                                                        <li  className='px-1 text-[14px]'>@ {tag.split("-")[1]}</li>
+                                                        <li className='px-1 text-[14px] text-gray-300'>@ {tag.split("-")[1]}</li>
                                                     </Link>
                                                 )
                                             })}
@@ -120,8 +123,10 @@ const ThreadCard = ({
                     isComment={isComment}
                 />
             </div>
+           
+            <div className='flex items-center mt-2'>
             {!isComment && comments && comments.length > 0 && (
-                <div className='ml-1 mt-3 flex items-center gap-2'>
+                <div className='ml-1 mt-1  flex items-center gap-2'>
                     {comments.slice(0, 2).map((comment, index) => (
                         <Image
                             key={index}
@@ -139,7 +144,14 @@ const ThreadCard = ({
                         </p>
                     </Link>
                 </div>
+            )} 
+             {likes && likes.length > 0 && (
+                <p className='ml-2 mt-2 text-[14px] text-gray-1 text-subtle-medium border-l border-gray-1 pl-2'>
+                    {likes.length} like{likes.length > 1 ? "s" : ""}
+                </p>
             )}
+            </div>
+           
             {tags && tags.length > 0 && (
                 tags.map(() => {
                     return (null)

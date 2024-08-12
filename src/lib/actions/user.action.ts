@@ -133,9 +133,31 @@ export async function fetchUsers({
 
 export async function getActivity(userId: string) {
     try {
-        connectToDb();
+        await connectToDb();
 
         const userThreads = await Thread.find({ author: userId });
+
+        const likedUserdata = userThreads.reduce((acc: any[], userThread) => {
+            return acc.concat(userThread.likes);
+        }, []);
+
+
+        const likedUsers = await Promise.all(
+            likedUserdata.map(async (like) => {
+                const user = await User.findById(like.userId).select("id _id username image");
+                if (user) {
+                    return {
+                        ...user.toObject(), 
+                        threadId: like.threadId,
+                        likedAt: like.date 
+                    };
+                }
+                return null;
+            })
+        );
+
+        const validLikedUsers = likedUsers.filter(user => user !== null);
+
 
         const childThreadIds = userThreads.reduce((acc, userThread) => {
             return acc.concat(userThread.children);
@@ -147,15 +169,20 @@ export async function getActivity(userId: string) {
         }).populate({
             path: "author",
             model: User,
-            select: "name image _id",
-        });
+            select: "name image _id id",
+        }).lean().exec();
 
-        return replies;
+        return {
+            replies,
+            likedUsers: validLikedUsers
+        };
     } catch (error) {
-        console.error("Error fetching replies: ", error);
+        console.error("Error fetching activity: ", error);
         throw error;
     }
 }
+
+
 
 export async function fetchFriends(userId: string) {
     try {
@@ -174,7 +201,7 @@ export async function fetchFriends(userId: string) {
             .filter(user => user._id.toString() !== userId)
             .map(user => ({
                 username: user.username,
-                id:user.id
+                id: user.id
             }));
 
         return userList;
