@@ -54,7 +54,7 @@ const TagsComp = ({ tagStr }: threadProps) => {
                                             {thread.author.username}
                                         </span>
                                         {" "}
-                                        tagged you in a <Link href={`/thread/${thread._id}`} className='text-sky-200   px-1 hover:underline'>thread </Link>
+                                        tagged in a <Link href={`/thread/${thread._id}`} className='text-sky-200   px-1 hover:underline'>thread </Link>
                                     </p>
                                 </Link>
                                 <p className='text-[13px]'>{formatDateString(thread.createdAt)}</p>

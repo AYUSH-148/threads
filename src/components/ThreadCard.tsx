@@ -6,6 +6,7 @@ import DeleteThread from './DeleteThread'
 import { formatDateString } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import LikeThreadComp from './LikeThreadComp'
+import ShareThread from './ShareThread'
 interface ThreadCardProps {
     id: string,
     currentUser: string,
@@ -73,17 +74,12 @@ const ThreadCard = ({
                                         />
                                     </Link>
 
-                                    <Image
-                                        src='/assets/share.svg'
-                                        alt='heart'
-                                        width={24}
-                                        height={24}
-                                        className='cursor-pointer object-contain'
-                                    />
+                                    <ShareThread id={id}/>
+                                   
                                 </div>
                                 {istags  && <Popover>
                                     <PopoverTrigger>
-                                        <div className='text-gray-600 py-0.5 text-[14px] cursor-pointer hover:text-gray-500  md:mr-4'>
+                                        <div className='text-gray-500 py-0.5 text-[14px] cursor-pointer bg-black hover:text-gray-400  px-2 rounded-xl md:mr-4'>
                                             T@gs
                                         </div>
                                     </PopoverTrigger>
