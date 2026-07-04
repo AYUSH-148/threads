@@ -10,37 +10,42 @@ import mongoose from "mongoose";
 
 
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
-    connectToDb();
+    try {
+        await connectToDb();
 
-    const skipAmount = (pageNumber - 1) * pageSize;
-    const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
-        .sort({ createdAt: "desc" })
-        .skip(skipAmount)
-        .limit(pageSize)
-        .populate({
-            path: "author",
-            model: User,
-        })
-        .populate({
-            path: "community",
-            model: Community,
-        })
-        .populate({
-            path: "children",
-            populate: {
+        const skipAmount = (pageNumber - 1) * pageSize;
+        const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
+            .sort({ createdAt: "desc" })
+            .skip(skipAmount)
+            .limit(pageSize)
+            .populate({
                 path: "author",
                 model: User,
-                select: "_id name parentId image",
-            },
-        }).lean();
+            })
+            .populate({
+                path: "community",
+                model: Community,
+            })
+            .populate({
+                path: "children",
+                populate: {
+                    path: "author",
+                    model: User,
+                    select: "_id name parentId image",
+                },
+            }).lean();
 
-    const totalPostsCount = await Thread.countDocuments({
-        parentId: { $in: [null, undefined] },
-    });
-    const posts = await postsQuery.exec();
+        const totalPostsCount = await Thread.countDocuments({
+            parentId: { $in: [null, undefined] },
+        });
+        const posts = await postsQuery.exec();
 
-    const isNext = totalPostsCount > skipAmount + posts.length;
-    return { posts, isNext }
+        const isNext = totalPostsCount > skipAmount + posts.length;
+        return { posts, isNext }
+    } catch (error) {
+        console.error("Error fetching posts:", error);
+        return { posts: [], isNext: false };
+    }
 }
 
 interface ThreadParams {
