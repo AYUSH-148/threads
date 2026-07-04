@@ -33,9 +33,9 @@ interface ThreadCardProps {
 const ThreadCard = ({
     id, author, currUserId2, currentUser, comments, community, isComment, createdAt, content, parentId, istags, tags, likes
 }: ThreadCardProps) => {
-    //@ts-ignore
-    const userIds = likes.map(like => like.userId) || [];
-    console.log("id",userIds)
+    const userIds = Array.isArray(likes)
+        ? likes.map((like) => typeof like === "string" ? like : like?.userId?.toString?.() ?? "").filter(Boolean)
+        : [];
     return (
         <article className={`flex w-full flex-col rounded-xl ${isComment ? "px-0 xs:px-7" : "bg-dark-2 p-7"}`}>
             <div className='flex items-start justify-between'>
@@ -77,26 +77,22 @@ const ThreadCard = ({
                                     <ShareThread id={id}/>
                                    
                                 </div>
-                                {istags  && <Popover>
-                                    <PopoverTrigger>
-                                        <div className='text-gray-500 py-0.5 text-[14px] cursor-pointer bg-black hover:text-gray-400  px-2 rounded-xl md:mr-4'>
-                                            T@gs
-                                        </div>
-                                    </PopoverTrigger>
-                                    <PopoverContent>
-                                        <ul className='flex flex-col items-start gap-3  w-full 2'>
-                                            {tags?.map((tag) => {
-                                                return (
-                                                    <Link href={`/profile/${tag.split("-")[0]}`} key={tag} className='truncate whitespace-nowrap w-full  cursor-pointer'>
-                                                        <li className='px-1 text-[14px] text-gray-300'>@ {tag.split("-")[1]}</li>
-                                                    </Link>
-                                                )
-                                            })}
-                                        </ul>
-
-
-                                    </PopoverContent>
-                                </Popover>}
+                                {istags && tags && tags.length > 0 && (
+                                    <Popover>
+                                        <PopoverTrigger>
+                                            <div className='text-gray-500 py-0.5 text-[14px] cursor-pointer bg-black hover:text-gray-400 px-2 rounded-xl md:mr-4'>
+                                                Tags
+                                            </div>
+                                        </PopoverTrigger>
+                                        <PopoverContent>
+                                            <ul className='flex flex-col items-start gap-3 w-full'>
+                                                {tags.map((tag) => (
+                                                    <li key={tag} className='px-1 text-[14px] text-gray-300'>#{tag}</li>
+                                                ))}
+                                            </ul>
+                                        </PopoverContent>
+                                    </Popover>
+                                )}
 
 
                             </div>
@@ -112,7 +108,7 @@ const ThreadCard = ({
                     </div>
                 </div>
                 <DeleteThread
-                    threadId={JSON.stringify(id)}
+                    threadId={id}
                     currentUserId={currentUser}
                     authorId={author.id}
                     parentId={parentId}
@@ -149,9 +145,11 @@ const ThreadCard = ({
             </div>
            
             {tags && tags.length > 0 && (
-                tags.map(() => {
-                    return (null)
-                })
+                <div className='mt-3 flex flex-wrap gap-2'>
+                    {tags.map((tag) => (
+                        <span key={tag} className='rounded-full bg-primary-500/20 px-2 py-1 text-[12px] text-primary-500'>#{tag}</span>
+                    ))}
+                </div>
             )}
             {!isComment && community && (
                 <Link

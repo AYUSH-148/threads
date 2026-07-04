@@ -21,9 +21,9 @@ const page = async ({ params }: { params: { id: string } }) => {
         <section className='relative'>
             <div>
                 <ThreadCard
-                    id={thread?._id}
+                    id={String(thread?._id)}
                     currentUser={user.id}
-                    currUserId2={userInfo._id}
+                    currUserId2={String(userInfo._id)}
                     parentId={thread?.parentId}
                     content={thread?.text}
                     author={thread?.author}
@@ -37,7 +37,7 @@ const page = async ({ params }: { params: { id: string } }) => {
                 <Comment
                     threadId={params.id}
                     currentUserImg={user.imageUrl}
-                    currentUserId={JSON.stringify(userInfo._id)}
+                    currentUserId={String(userInfo._id)}
                 />
             </div>
             <div className='mt-10'>

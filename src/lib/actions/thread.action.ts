@@ -10,10 +10,11 @@ import mongoose from "mongoose";
 
 
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
-    connectToDb();
+    await connectToDb();
 
     const skipAmount = (pageNumber - 1) * pageSize;
-    const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
+    const rootThreadQuery = { parentId: { $in: [null, undefined] } };
+    const postsQuery = Thread.find(rootThreadQuery)
         .sort({ createdAt: "desc" })
         .skip(skipAmount)
         .limit(pageSize)
@@ -34,7 +35,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
             },
         }).lean();
 
-    const totalPostsCount = await Thread.countDocuments(ROOT_THREAD_QUERY);
+    const totalPostsCount = await Thread.countDocuments(rootThreadQuery);
     const posts = await postsQuery.exec();
 
     const isNext = totalPostsCount > skipAmount + posts.length;

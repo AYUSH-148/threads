@@ -37,10 +37,9 @@ export default async function Home({
             {result.posts.map((post) => (
               <div key={post.id}>
                 <ThreadCard
-                  //@ts-ignore
-                  id={post._id}
+                  id={String(post._id)}
                   currentUser={user.id}
-                  currUserId2={userInfo._id}
+                  currUserId2={String(userInfo._id)}
                   parentId={post.parentId}
                   content={post.text}
                   author={post.author}

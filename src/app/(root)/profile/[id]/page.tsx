@@ -58,7 +58,7 @@ async function Page({ params }: { params: { id: string } }) {
                             {tab.value === "threads" && (
                                 <ThreadsTab
                                     currentUserId={user.id}
-                                    currUserId2={userInfo._id}
+                                    currUserId2={String(userInfo._id)}
                                     accountId={userInfo.id}
                                     accountType='User'
                                 />

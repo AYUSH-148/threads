@@ -18,21 +18,28 @@ async function Page({ params }: { params: { id: string } }) {
   const communityDetails = await fetchCommunityDetails(params.id);
   const userInfo = await fetchUser(user.id)
 
+  let invites: any[] = [];
   const bearerToken = process.env.CLERK_SECRET_KEY;
 
-  const response = await fetch(`https://api.clerk.com/v1/organizations/${params.id}/invitations`, {
-    headers: {
-      'Authorization': `Bearer ${bearerToken}`,
-      'Content-Type': 'application/json'
+  if (bearerToken && params.id) {
+    try {
+      const response = await fetch(`https://api.clerk.com/v1/organizations/${params.id}/invitations`, {
+        headers: {
+          'Authorization': `Bearer ${bearerToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        invites = Array.isArray(data?.data) ? data.data : [];
+      } else if (response.status !== 404) {
+        console.error("Error fetching invites:", response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error("Error fetching invites:", error);
     }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error fetching invites: ${response.statusText}`);
   }
-
-  const invites = await response.json();
-  console.log("Invitations -", invites);
 
 
 
@@ -97,42 +104,33 @@ async function Page({ params }: { params: { id: string } }) {
           </TabsContent>
 
           <TabsContent value='requests' className='w-full text-light-1 flex flex-col gap-3 mt-4'>
-            {invites && invites.data.length > 0 && invites.data.map((invite: any, index: any) => {
-              return (
-               
-                  <article className='flex py-2.5 items-center gap-2 rounded-md bg-dark-2 px-7 justify-between' key={index}>
-                    
-                    <div className="flex items-center gap-2">
-                    
-                      Request sent to
-                      <p className='!text-small-regular text-light-1'>
-                        <span className='mr-1 text-primary-500'>
-                          {invite.email_address}
-                        </span>{" "}
-                       
-                      </p>
-                     
-                      <p className="text-[12.5px] text-gray-200">({formatDateString(invite.created_at)})</p>
-                      {invite?.role.includes("admin") &&<p className="text-[12px] bg-green-600 rounded-full px-2 py-0.5">
+            {Array.isArray(invites) && invites.length > 0 ? (
+              invites.map((invite: any, index: any) => (
+                <article className='flex py-2.5 items-center gap-2 rounded-md bg-dark-2 px-7 justify-between' key={index}>
+                  <div className="flex items-center gap-2">
+                    Request sent to
+                    <p className='!text-small-regular text-light-1'>
+                      <span className='mr-1 text-primary-500'>
+                        {invite.email_address || "Unknown recipient"}
+                      </span>{" "}
+                    </p>
+
+                    <p className="text-[12.5px] text-gray-200">({formatDateString(invite.created_at || new Date().toISOString())})</p>
+                    {invite?.role?.includes("admin") && (
+                      <p className="text-[12px] bg-green-600 rounded-full px-2 py-0.5">
                         Admin
-                      </p>}
-                    </div>
+                      </p>
+                    )}
+                  </div>
 
-                   {invite.status==="accepted" && <p className="text-green-200">
-                      Accepted
-                  </p>}
-                   {invite.status==="pending" && <p className="text-gray-300">
-                      Pending.. 
-                  </p>}
-                   {invite.status==="revoked" && <p className="text-red-200">
-                      Revoked
-                  </p>}
-
-
-                  </article>
-               
-              );
-            })}
+                  {invite.status === "accepted" && <p className="text-green-200">Accepted</p>}
+                  {invite.status === "pending" && <p className="text-gray-300">Pending..</p>}
+                  {invite.status === "revoked" && <p className="text-red-200">Revoked</p>}
+                </article>
+              ))
+            ) : (
+              <p className='!text-base-regular text-light-3 mt-2'>No invite requests yet.</p>
+            )}
           </TabsContent>
 
         </Tabs>

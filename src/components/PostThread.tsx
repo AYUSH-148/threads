@@ -51,16 +51,21 @@ const PostThread = ({ userId }: ThreadProps) => {
       author: userId,
       communityId: organization ? organization.id : null,
       path: pathname,
-      tags: [""]
-      // tags: values.tags ? values.tags.map((tag) => tag.value) : null
+      tags: values.tags ? values.tags.map((tag: any) => tag.value) : []
     });
     router.push("/");
   };
 
-  const categories = members.map(member => ({
-    value: `${member.id}-${member.username}`,
-    label: member.username
-  }));
+  const predefinedTags = [
+    { value: 'social', label: 'Social' },
+    { value: 'product', label: 'Product' },
+    { value: 'design', label: 'Design' },
+    { value: 'tech', label: 'Tech' },
+    { value: 'startup', label: 'Startup' },
+    { value: 'ai', label: 'AI' },
+    { value: 'career', label: 'Career' },
+    { value: 'lifestyle', label: 'Lifestyle' },
+  ];
   return (
     <>
 
@@ -82,10 +87,10 @@ const PostThread = ({ userId }: ThreadProps) => {
                 <FormControl className='no-focus border border-dark-4'>
                   <Select
                     isMulti
-                    options={categories}
+                    options={predefinedTags}
                     onChange={(selectedOptions) => field.onChange(selectedOptions)}
                     value={field.value}
-
+                    placeholder="Select tags"
                   />
                 </FormControl>
                 <FormMessage />
