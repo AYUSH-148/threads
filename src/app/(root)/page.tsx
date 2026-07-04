@@ -1,10 +1,6 @@
 import Pagination from "@/components/Pagination";
 import ThreadCard from "@/components/ThreadCard";
 import { fetchPosts } from "@/lib/actions/thread.action";
-import { fetchUser } from "@/lib/actions/user.action";
-import { currentUser } from "@clerk/nextjs";
-
-import { redirect } from "next/navigation";
 
 
 
@@ -13,15 +9,6 @@ export default async function Home({
 }: {
   searchParams: { [key: string]: string | undefined };
 }) {
-
-  const user = await currentUser();
-  let userInfo = null;
-
-  if (user) {
-    userInfo = await fetchUser(user.id);
-    if (!userInfo?.onboarded) redirect("/onboarding");
-  }
-
   const result = await fetchPosts(
     searchParams.page ? +searchParams.page : 1,
     30
@@ -41,8 +28,8 @@ export default async function Home({
                 <ThreadCard
                   //@ts-ignore
                   id={post._id}
-                  currentUser={user?.id ?? ""}
-                  currUserId2={userInfo?._id ?? ""}
+                  currentUser={""}
+                  currUserId2={""}
                   parentId={post.parentId}
                   content={post.text}
                   author={post.author}
