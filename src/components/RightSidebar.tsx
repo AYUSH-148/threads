@@ -6,13 +6,20 @@ import { fetchCommunities } from "@/lib/actions/community.actions";
 import { fetchUsers } from "@/lib/actions/user.action";
 
 async function RightSidebar() {
-  const user = await currentUser();
-  if (!user) return null;
+  let user = null;
 
-  const similarMinds = await fetchUsers({
-    userId: user.id,
-    pageSize: 4,
-  });
+  try {
+    user = await currentUser();
+  } catch (error) {
+    console.error("Failed to resolve Clerk user for right sidebar:", error);
+  }
+
+  const similarMinds = user
+    ? await fetchUsers({
+        userId: user.id,
+        pageSize: 4,
+      })
+    : { users: [] };
 
   const suggestedCOmmunities = await fetchCommunities({ pageSize: 4 });
 
