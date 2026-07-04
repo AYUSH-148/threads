@@ -34,9 +34,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
             },
         }).lean();
 
-    const totalPostsCount = await Thread.countDocuments({
-        parentId: { $in: [null, undefined] },
-    });
+    const totalPostsCount = await Thread.countDocuments(ROOT_THREAD_QUERY);
     const posts = await postsQuery.exec();
 
     const isNext = totalPostsCount > skipAmount + posts.length;
@@ -57,7 +55,11 @@ export async function createThread({ text, author, communityId, path, tags }: Th
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result
 
         const createThread = await Thread.create({
-            text, author, community: communityIdObject, tags
+            text,
+            author,
+            community: communityIdObject?._id ?? null,
+            parentId: null,
+            tags,
         })
 
         await User.findByIdAndUpdate(author, {
