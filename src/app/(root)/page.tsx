@@ -15,10 +15,12 @@ export default async function Home({
 }) {
 
   const user = await currentUser();
-  if (!user) return null;
+  let userInfo = null;
 
-  const userInfo = await fetchUser(user.id);
-  if (!userInfo?.onboarded) redirect("/onboarding");
+  if (user) {
+    userInfo = await fetchUser(user.id);
+    if (!userInfo?.onboarded) redirect("/onboarding");
+  }
 
   const result = await fetchPosts(
     searchParams.page ? +searchParams.page : 1,
@@ -39,8 +41,8 @@ export default async function Home({
                 <ThreadCard
                   //@ts-ignore
                   id={post._id}
-                  currentUser={user.id}
-                  currUserId2={userInfo._id}
+                  currentUser={user?.id ?? ""}
+                  currUserId2={userInfo?._id ?? ""}
                   parentId={post.parentId}
                   content={post.text}
                   author={post.author}
