@@ -4,12 +4,13 @@ import { revalidatePath } from "next/cache";
 import Community from "../models/community.model";
 import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
+import { auth } from "@clerk/nextjs";
 import Thread from "../models/thread.model";
 import mongoose, { FilterQuery, SortOrder } from "mongoose";
 
 export async function fetchUser(userId: String) {
     try {
-        connectToDb();
+        await connectToDb();
         return await User.findOne({ id: userId }).populate({
             path: "communities",
             model: Community
@@ -20,7 +21,6 @@ export async function fetchUser(userId: String) {
 }
 
 interface Params {
-    userId: string;
     username: string;
     name: string;
     bio: string;
@@ -29,7 +29,6 @@ interface Params {
 }
 
 export async function updateUser({
-    userId,
     bio,
     name,
     path,
@@ -37,9 +36,14 @@ export async function updateUser({
     image,
 }: Params): Promise<void> {
     try {
-        connectToDb();
+        // Onboarding runs before the User document exists, so resolve the Clerk
+        // session directly here instead of via requireCurrentUser().
+        const { userId: clerkId } = auth();
+        if (!clerkId) throw new Error("Unauthorized");
+
+        await connectToDb();
         await User.findOneAndUpdate(
-            { id: userId },
+            { id: clerkId },
             {
                 username: username.toLowerCase(),
                 name, bio, image, onboarded: true
@@ -55,7 +59,7 @@ export async function updateUser({
 }
 export async function fetchUserPosts(userId: String) {
     try {
-        connectToDb();
+        await connectToDb();
         const threads = await User.findOne({ id: userId }).populate({
             path: "threads",
             model: Thread,
@@ -99,7 +103,7 @@ export async function fetchUsers({
     sortBy = "desc",
 }: SearchQuery) {
     try {
-        connectToDb();
+        await connectToDb();
         const skipAmount = (pageNumber - 1) * pageSize;
         const regex = new RegExp(searchString, "i");
 
@@ -186,7 +190,7 @@ export async function getActivity(userId: string) {
 
 export async function fetchFriends(userId: string) {
     try {
-        connectToDb();
+        await connectToDb();
         const communitiesList = await Community.find({
             members: new mongoose.Types.ObjectId(userId)
         });
