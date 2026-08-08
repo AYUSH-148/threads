@@ -23,12 +23,10 @@ interface Result {
             image: string
         } | null,
         createdAt: string,
-        children: {
-            author: {
-                image: string
-            }
-        }[]
-        likes: string[]
+        likesCount: number
+        likedByMe: boolean
+        commentsCount: number
+        commentImages: string[]
         tags: string[]
     }[]
 }
@@ -37,11 +35,10 @@ interface ThreadsTabProps {
     currentUserId: string,
     accountId: string,
     accountType: string
-    currUserId2:string
 }
-const ThreadsTab = async ({ currentUserId, accountId, accountType,currUserId2 }: ThreadsTabProps) => {
+const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabProps) => {
 
-    let result: Result;
+    let result: Result | null;
     if (accountType === "Community") {
         result = await fetchCommunityPosts(accountId);
    
@@ -57,9 +54,8 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType,currUserId2 }:
         <section className='mt-9 flex flex-col gap-10'>
         {result.threads.map((thread) => (
           <ThreadCard
-            key={thread._id}
-            id={thread._id}
-            currUserId2={currUserId2}
+            key={String(thread._id)}
+            id={String(thread._id)}
             currentUser={currentUserId}
             parentId={thread.parentId}
             content={thread.text}
@@ -78,9 +74,11 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType,currUserId2 }:
                 : thread.community
             }
             createdAt={thread.createdAt}
-            comments={thread.children}
             tags={thread.tags}
-            likes={thread.likes}
+            likesCount={thread.likesCount}
+            likedByMe={thread.likedByMe}
+            commentsCount={thread.commentsCount}
+            commentImages={thread.commentImages}
           />
         ))}
       </section>
