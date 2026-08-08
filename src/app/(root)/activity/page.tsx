@@ -13,14 +13,16 @@ async function Page() {
   if (!userInfo?.onboarded) redirect("/onboarding");
 
   const activity = await getActivity(userInfo._id);
-  console.log(activity)
+
+  // `as const` keeps this a discriminated union, so the branches below narrow to
+  // the right shape instead of both collapsing to a widened `string` tag.
   const combinedActivity = [
     ...activity.replies.map((reply) => ({
-      type: "reply",
+      type: "reply" as const,
       data: reply,
     })),
     ...activity.likedUsers.map((like) => ({
-      type: "like",
+      type: "like" as const,
       data: like,
     })),
   ];

@@ -23,14 +23,15 @@ const page = async ({ params }: { params: { id: string } }) => {
                 <ThreadCard
                     id={String(thread?._id)}
                     currentUser={user.id}
-                    currUserId2={String(userInfo._id)}
                     parentId={thread?.parentId}
                     content={thread?.text}
                     author={thread?.author}
                     community={thread?.community}
                     createdAt={thread?.createdAt}
-                    comments={thread?.children}
-                    likes = {thread?.likes}
+                    likesCount={thread?.likesCount ?? 0}
+                    likedByMe={thread?.likedByMe ?? false}
+                    commentsCount={thread?.commentsCount ?? 0}
+                    commentImages={thread?.commentImages}
                 />
             </div>
             <div className='mt-7'>
@@ -43,18 +44,19 @@ const page = async ({ params }: { params: { id: string } }) => {
             <div className='mt-10'>
                 {thread?.children.map((childItem: any) => (
                     <ThreadCard
-                        key={childItem._id}
-                        id={childItem._id}
+                        key={String(childItem._id)}
+                        id={String(childItem._id)}
                         currentUser={user.id}
-                        currUserId2={String(userInfo._id)}
                         parentId={childItem.parentId}
                         content={childItem.text}
                         author={childItem.author}
                         community={childItem.community}
                         createdAt={childItem.createdAt}
-                        comments={childItem.children}
                         isComment
-                        likes = {childItem.likes}
+                        likesCount={childItem.likesCount}
+                        likedByMe={childItem.likedByMe}
+                        commentsCount={childItem.commentsCount}
+                        commentImages={childItem.commentImages}
                     />
                 ))}
             </div>
