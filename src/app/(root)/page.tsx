@@ -35,21 +35,24 @@ export default async function Home({
         ) : (
           <>
             {result.posts.map((post) => (
-              <div key={post.id}>
+              // post.id was undefined here: `id` is a Mongoose virtual and this
+              // query does not return hydrated documents.
+              <div key={String(post._id)}>
                 <ThreadCard
                   id={String(post._id)}
                   currentUser={user.id}
-                  currUserId2={String(userInfo._id)}
                   parentId={post.parentId}
                   content={post.text}
                   author={post.author}
                   community={post.community}
                   createdAt={post.createdAt}
-                  comments={post.children}
                   tags={post.tags}
-                  likes={post.likes}
+                  likesCount={post.likesCount}
+                  likedByMe={post.likedByMe}
+                  commentsCount={post.commentsCount}
+                  commentImages={post.commentImages}
                 />
-         
+
               </div>
                ))}
           </>

@@ -6,17 +6,21 @@ import { FaHeart, FaRegHeart } from "react-icons/fa";
 
 interface LikeProps {
   threadId: string,
-  userId: string,
-  likes: string[]
+  /**
+   * Computed by the feed query. Previously this component received the whole
+   * likes array and scanned it for the viewer's id, which meant every like on
+   * the thread had to be serialized into the page to answer one boolean.
+   */
+  likedByMe: boolean
 }
 
-const LikeThreadComp = ({ threadId, userId, likes }: LikeProps) => {
+const LikeThreadComp = ({ threadId, likedByMe }: LikeProps) => {
 
   const path = usePathname();
   const [, startTransition] = useTransition();
 
   // The server is the single source of truth for "have I liked this".
-  const likedOnServer = Boolean(userId) && likes.includes(userId);
+  const likedOnServer = likedByMe;
 
   // An optimistic override, held only while the action is in flight so the heart
   // reacts instantly. It is dropped the moment the server reports a different
@@ -32,7 +36,6 @@ const LikeThreadComp = ({ threadId, userId, likes }: LikeProps) => {
   const liked = optimisticLiked ?? likedOnServer;
 
   const handleLike = () => {
-    if (!userId) return;
     setOptimisticLiked(!liked);
 
     startTransition(() => {

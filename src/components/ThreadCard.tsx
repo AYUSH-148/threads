@@ -9,7 +9,6 @@ import ShareThread from './ShareThread'
 interface ThreadCardProps {
     id: string,
     currentUser: string,
-    currUserId2: string,
     parentId: string | null,
     content: string,
     author: {
@@ -19,21 +18,20 @@ interface ThreadCardProps {
         name: string, id: string, image: string
     } | null
     createdAt: string,
-    comments?: {
-        author: {
-            image: string
-        }
-    }[],
+    // Derived server-side. The card only ever needed these four values, so the
+    // likes and children arrays they come from never reach the client.
+    likesCount: number
+    likedByMe: boolean
+    commentsCount: number
+    /** Up to two commenter avatars; may be shorter than commentsCount. */
+    commentImages?: string[]
     isComment?: boolean
     tags?: string[]
-    likes: string[]
 }
 const ThreadCard = ({
-    id, author, currUserId2, currentUser, comments, community, isComment, createdAt, content, parentId, tags, likes
+    id, author, currentUser, community, isComment, createdAt, content, parentId, tags,
+    likesCount, likedByMe, commentsCount, commentImages = []
 }: ThreadCardProps) => {
-    const userIds = Array.isArray(likes)
-        ? likes.map((like) => typeof like === "string" ? like : like?.userId?.toString?.() ?? "").filter(Boolean)
-        : [];
     return (
         <article className={`flex w-full flex-col rounded-xl ${isComment ? "px-0 xs:px-7" : "bg-dark-2 p-7"}`}>
             <div className='flex items-start justify-between'>
@@ -60,7 +58,7 @@ const ThreadCard = ({
                             <div className='flex justify-between items-center'>
                                 <div className='flex gap-3.5'>
 
-                                    <LikeThreadComp threadId={id} userId={currUserId2} likes={userIds}/>
+                                    <LikeThreadComp threadId={id} likedByMe={likedByMe}/>
 
                                     <Link href={`/thread/${id}`}>
                                         <Image
@@ -77,10 +75,10 @@ const ThreadCard = ({
                                 </div>
                             </div>
 
-                            {isComment && comments && comments?.length > 0 && (
+                            {isComment && commentsCount > 0 && (
                                 <Link href={`/thread/${id}`}>
                                     <p className='mt-1 text-subtle-medium text-gray-1'>
-                                        {comments?.length} repl{comments?.length > 1 ? "ies" : "y"}
+                                        {commentsCount} repl{commentsCount > 1 ? "ies" : "y"}
                                     </p>
                                 </Link>
                             )}
@@ -97,12 +95,12 @@ const ThreadCard = ({
             </div>
            
             <div className='flex items-center mt-2'>
-            {!isComment && comments && comments.length > 0 && (
+            {!isComment && commentsCount > 0 && (
                 <div className='ml-1 mt-1  flex items-center gap-2'>
-                    {comments.slice(0, 2).map((comment, index) => (
+                    {commentImages.map((image, index) => (
                         <Image
                             key={index}
-                            src={comment.author.image}
+                            src={image}
                             alt={`user_${index}`}
                             width={24}
                             height={24}
@@ -112,14 +110,14 @@ const ThreadCard = ({
 
                     <Link href={`/thread/${id}`}>
                         <p className='mt-1 text-subtle-medium text-gray-1'>
-                            {comments.length} repl{comments.length > 1 ? "ies" : "y"}
+                            {commentsCount} repl{commentsCount > 1 ? "ies" : "y"}
                         </p>
                     </Link>
                 </div>
-            )} 
-             {likes && likes.length > 0 && (
+            )}
+             {likesCount > 0 && (
                 <p className='ml-2 mt-2 text-[14px] text-gray-1 text-subtle-medium border-l border-gray-1 pl-2'>
-                    {likes.length} like{likes.length > 1 ? "s" : ""}
+                    {likesCount} like{likesCount > 1 ? "s" : ""}
                 </p>
             )}
             </div>

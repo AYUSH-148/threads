@@ -9,14 +9,12 @@ import UserCard from "@/components/UserCard";
 import ThreadsTab from "@/components/ThreadsTab";
 
 import Image from "next/image";
-import { fetchUser } from "@/lib/actions/user.action";
 
 async function Page({ params }: { params: { id: string } }) {
   const user = await currentUser();
   if (!user) return null;
 
   const communityDetails = await fetchCommunityDetails(params.id);
-  const userInfo = await fetchUser(user.id)
 
   let invites: any[] = [];
   const bearerToken = process.env.CLERK_SECRET_KEY;
@@ -82,7 +80,6 @@ async function Page({ params }: { params: { id: string } }) {
 
             <ThreadsTab
               currentUserId={user.id}
-              currUserId2={userInfo._id}
               accountId={communityDetails._id}
               accountType='Community'
             />

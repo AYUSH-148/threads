@@ -3,7 +3,7 @@ import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import ThreadsTab from "@/components/ThreadsTab";
 import { profileTabs } from "@/constants";
-import { fetchUser, getActivity } from "@/lib/actions/user.action";
+import { fetchUser, getReplies } from "@/lib/actions/user.action";
 import ProfileHeader from "@/components/ProfileHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
@@ -16,7 +16,8 @@ async function Page({ params }: { params: { id: string } }) {
     const userInfo = await fetchUser(params.id);
     if (!userInfo?.onboarded) redirect("/onboarding");
 
-    const activity = await getActivity(userInfo._id);
+    // This tab renders replies only, so it no longer asks for the likes half.
+    const replies = await getReplies(userInfo._id);
     return (
         <section>
             <ProfileHeader
@@ -58,19 +59,18 @@ async function Page({ params }: { params: { id: string } }) {
                             {tab.value === "threads" && (
                                 <ThreadsTab
                                     currentUserId={user.id}
-                                    currUserId2={String(userInfo._id)}
                                     accountId={userInfo.id}
                                     accountType='User'
                                 />
                             )}
                             {tab.value === "replies" && (
                                 <section className="flex flex-col gap-3 mt-4 ">
-                                    {activity.replies.length > 0 ? (
-                                        activity.replies.map((activity) => (
-                                            <Link key={activity.id} href={`/thread/${activity.parentId}`}>
+                                    {replies.length > 0 ? (
+                                        replies.map((reply) => (
+                                            <Link key={reply.id} href={`/thread/${reply.parentId}`}>
                                                 <article className='flex items-center gap-2 bg-dark-2 rounded-md px-7 py-3'>
                                                     <Image
-                                                        src={activity.author.image}
+                                                        src={reply.author.image}
                                                         alt='user_logo'
                                                         width={36}
                                                         height={36}
@@ -78,7 +78,7 @@ async function Page({ params }: { params: { id: string } }) {
                                                     />
                                                     <p className='!text-small-regular text-light-1'>
                                                         <span className='mr-1 text-primary-500'>
-                                                            {activity.author.name}
+                                                            {reply.author.name}
                                                         </span>{" "}
                                                         replied to your thread
                                                     </p>
