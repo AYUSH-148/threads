@@ -46,7 +46,6 @@ export default async function Home({
                   community={post.community}
                   createdAt={post.createdAt}
                   comments={post.children}
-                  istags={post.tags.length > 0}
                   tags={post.tags}
                   likes={post.likes}
                 />

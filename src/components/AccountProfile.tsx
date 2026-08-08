@@ -70,7 +70,6 @@ const AccountProfile = ({ user}: UserProps) => {
       name: values.name,
       path: pathname,
       username: values.username,
-      userId: user.id,
       bio: values.bio,
       image: values.profile_photo,
     });

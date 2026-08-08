@@ -1,4 +1,10 @@
-"use server";
+// Deliberately NOT a "use server" module.
+//
+// Every export of a "use server" file becomes a public HTTP endpoint the browser
+// can invoke — which would let anyone call deleteCommunity() or
+// removeUserFromCommunity() directly. These are only ever called from server
+// components and the Clerk webhook handler, so keeping them as plain
+// server-side functions removes that surface entirely.
 
 import { FilterQuery, SortOrder } from "mongoose";
 
@@ -17,7 +23,7 @@ export async function createCommunity(
   createdById: string // Change the parameter name to reflect it's an id
 ) {
   try {
-    connectToDb();
+    await connectToDb();
 
     // Find the user with the provided unique id
     const user = await User.findOne({ id: createdById });
@@ -51,7 +57,7 @@ export async function createCommunity(
 
 export async function fetchCommunityDetails(id: string) {
   try {
-    connectToDb();
+    await connectToDb();
 
     const communityDetails = await Community.findOne({ id }).populate([
       "createdBy",
@@ -72,7 +78,7 @@ export async function fetchCommunityDetails(id: string) {
 
 export async function fetchCommunityPosts(id: string) {
   try {
-    connectToDb();
+    await connectToDb();
 
     const communityPosts = await Community.findById(id).populate({
       path: "threads",
@@ -115,7 +121,7 @@ export async function fetchCommunities({
   sortBy?: SortOrder;
 }) {
   try {
-    connectToDb();
+    await connectToDb();
 
     // Calculate the number of communities to skip based on the page number and page size.
     const skipAmount = (pageNumber - 1) * pageSize;
@@ -164,7 +170,7 @@ export async function addMemberToCommunity(
   memberId: string
 ) {
   try {
-    connectToDb();
+    await connectToDb();
 
     // Find the community by its unique id
     const community = await Community.findOne({ id: communityId });
@@ -206,7 +212,7 @@ export async function removeUserFromCommunity(
   communityId: string
 ) {
   try {
-    connectToDb();
+    await connectToDb();
 
     const userIdObject = await User.findOne({ id: userId }, { _id: 1 });
     const communityIdObject = await Community.findOne(
@@ -249,7 +255,7 @@ export async function updateCommunityInfo(
   image: string
 ) {
   try {
-    connectToDb();
+    await connectToDb();
 
     // Find the community by its _id and update the information
     const updatedCommunity = await Community.findOneAndUpdate(
@@ -271,7 +277,7 @@ export async function updateCommunityInfo(
 
 export async function deleteCommunity(communityId: string) {
   try {
-    connectToDb();
+    await connectToDb();
 
     // Find the community by its ID and delete it
     const deletedCommunity = await Community.findOneAndDelete({

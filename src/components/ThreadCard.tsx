@@ -4,7 +4,6 @@ import React from 'react'
 import Image from 'next/image'
 import DeleteThread from './DeleteThread'
 import { formatDateString } from '@/lib/utils'
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import LikeThreadComp from './LikeThreadComp'
 import ShareThread from './ShareThread'
 interface ThreadCardProps {
@@ -26,12 +25,11 @@ interface ThreadCardProps {
         }
     }[],
     isComment?: boolean
-    istags?: boolean
     tags?: string[]
     likes: string[]
 }
 const ThreadCard = ({
-    id, author, currUserId2, currentUser, comments, community, isComment, createdAt, content, parentId, istags, tags, likes
+    id, author, currUserId2, currentUser, comments, community, isComment, createdAt, content, parentId, tags, likes
 }: ThreadCardProps) => {
     const userIds = Array.isArray(likes)
         ? likes.map((like) => typeof like === "string" ? like : like?.userId?.toString?.() ?? "").filter(Boolean)
@@ -75,26 +73,8 @@ const ThreadCard = ({
                                     </Link>
 
                                     <ShareThread id={id}/>
-                                   
+
                                 </div>
-                                {istags && tags && tags.length > 0 && (
-                                    <Popover>
-                                        <PopoverTrigger>
-                                            <div className='text-gray-500 py-0.5 text-[14px] cursor-pointer bg-black hover:text-gray-400 px-2 rounded-xl md:mr-4'>
-                                                Tags
-                                            </div>
-                                        </PopoverTrigger>
-                                        <PopoverContent>
-                                            <ul className='flex flex-col items-start gap-3 w-full'>
-                                                {tags.map((tag) => (
-                                                    <li key={tag} className='px-1 text-[14px] text-gray-300'>#{tag}</li>
-                                                ))}
-                                            </ul>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-
-
                             </div>
 
                             {isComment && comments && comments?.length > 0 && (
