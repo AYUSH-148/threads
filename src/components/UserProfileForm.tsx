@@ -74,7 +74,6 @@ const UserProfileForm = ({userData}: UserProps) => {
             name: values.name,
             path: pathname,
             username: values.username,
-            userId: userData.id,
             bio: values.bio,
             image: values.profile_photo,
         });
