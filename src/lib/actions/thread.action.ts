@@ -5,6 +5,7 @@ import Community from "../models/community.model";
 import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
+import { requireCurrentUser } from "../auth";
 import mongoose from "mongoose";
 
 
@@ -44,15 +45,15 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
 
 interface ThreadParams {
     text: string,
-    author: string,
     communityId: string | null
     path: string
     tags: string[] | null
 }
 
-export async function createThread({ text, author, communityId, path, tags }: ThreadParams) {
+export async function createThread({ text, communityId, path, tags }: ThreadParams) {
     try {
-        connectToDb();
+        const { userId: author } = await requireCurrentUser();
+        await connectToDb();
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result
 
         const createThread = await Thread.create({
@@ -79,7 +80,7 @@ export async function createThread({ text, author, communityId, path, tags }: Th
 
 export async function fetchThreadById(id: string) {
     try {
-        connectToDb();
+        await connectToDb();
         const thread = await Thread.findById(id).populate({
             path: "author",
             model: User,
@@ -116,7 +117,8 @@ export async function fetchThreadById(id: string) {
 
 export async function deleteThread(id: string, path: string) {
     try {
-        connectToDb();
+        const { userId } = await requireCurrentUser();
+        await connectToDb();
         const mainThread = await Thread.findById(id)
             .populate(
                 {
@@ -131,6 +133,9 @@ export async function deleteThread(id: string, path: string) {
             )
         if (!mainThread) {
             throw new Error("Thread Not found")
+        }
+        if (mainThread.author?._id?.toString() !== userId) {
+            throw new Error("Not allowed to delete this thread")
         }
 
         const descendantThreads = await fetchAllChildThreads(id);
@@ -186,11 +191,11 @@ async function fetchAllChildThreads(threadId: string): Promise<any[]> {
 export async function addCommentToThread(
     threadId: string,
     commentText: string,
-    userId: string,
     path: string
 ) {
-    connectToDb();
     try {
+        const { userId } = await requireCurrentUser();
+        await connectToDb();
         const originalThread = await Thread.findById(threadId);
         if (!originalThread) {
             throw new Error("Thread not found");
@@ -213,9 +218,10 @@ export async function addCommentToThread(
     }
 }
 
-export async function handleLikeToThread(threadId: string, userId: string, path: string) {
+export async function handleLikeToThread(threadId: string, path: string) {
     try {
-        connectToDb();
+        const { userId } = await requireCurrentUser();
+        await connectToDb();
 
         const thread = await Thread.findById(threadId);
         if (!thread) {
@@ -223,7 +229,7 @@ export async function handleLikeToThread(threadId: string, userId: string, path:
         }
 
         const likeIndex = thread.likes.findIndex(
-            (like:any) => like.userId.toString() === userId
+            (like:any) => like.userId?.toString() === userId
         );
 
         if (likeIndex !== -1) { 
