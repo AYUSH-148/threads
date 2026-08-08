@@ -13,6 +13,8 @@ import Thread from "../models/thread.model";
 import User from "../models/user.model";
 
 import { connectToDb } from "../mongoose";
+import { getCurrentUserId } from "../auth";
+import { threadCardStages } from "../aggregations/threadCard";
 
 export async function createCommunity(
   id: string,
@@ -79,29 +81,26 @@ export async function fetchCommunityDetails(id: string) {
 export async function fetchCommunityPosts(id: string) {
   try {
     await connectToDb();
+    const viewerId = await getCurrentUserId();
 
-    const communityPosts = await Community.findById(id).populate({
-      path: "threads",
-      model: Thread,
-      populate: [
-        {
-          path: "author",
-          model: User,
-          select: "name image id", // Select the "name" and "_id" fields from the "User" model
-        },
-        {
-          path: "children",
-          model: Thread,
-          populate: {
-            path: "author",
-            model: User,
-            select: "image _id", // Select the "name" and "_id" fields from the "User" model
-          },
-        },
-      ],
-    });
+    const community = await Community.findById(id)
+      .select("_id id name image threads")
+      .lean<{ id: string; name: string; image: string; threads: unknown[] } | null>();
 
-    return communityPosts;
+    if (!community) return null;
+
+    const threads = await Thread.aggregate([
+      { $match: { _id: { $in: community.threads ?? [] } } },
+      { $sort: { createdAt: -1 } },
+      ...threadCardStages(viewerId),
+    ]);
+
+    return {
+      id: community.id,
+      name: community.name,
+      image: community.image,
+      threads,
+    };
   } catch (error) {
     // Handle any errors
     console.error("Error fetching community posts:", error);

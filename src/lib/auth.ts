@@ -23,3 +23,24 @@ export async function requireCurrentUser() {
 
   return { clerkId, userId: user._id.toString() };
 }
+
+/**
+ * Read-path counterpart to requireCurrentUser(): the viewer's Mongo _id, or
+ * null when signed out.
+ *
+ * Feed queries need the viewer to compute `likedByMe`, but a read must not
+ * throw the way a mutation does. Resolving it here rather than accepting it as
+ * an argument keeps the same rule as above — a caller-supplied id is forgeable,
+ * and these functions are reachable over HTTP.
+ */
+export async function getCurrentUserId(): Promise<string | null> {
+  const { userId: clerkId } = auth();
+  if (!clerkId) return null;
+
+  await connectToDb();
+  const user = await User.findOne({ id: clerkId })
+    .select("_id")
+    .lean<{ _id: unknown } | null>();
+
+  return user ? String(user._id) : null;
+}

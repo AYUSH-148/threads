@@ -6,6 +6,8 @@ import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
 import { auth } from "@clerk/nextjs";
 import Thread from "../models/thread.model";
+import { getCurrentUserId } from "../auth";
+import { threadCardStages } from "../aggregations/threadCard";
 import mongoose, { FilterQuery, SortOrder } from "mongoose";
 
 export async function fetchUser(userId: String) {
@@ -57,30 +59,26 @@ export async function updateUser({
         throw new Error(`Failed to create/update user: ${error.message}`);
     }
 }
-export async function fetchUserPosts(userId: String) {
+export async function fetchUserPosts(accountId: String) {
     try {
         await connectToDb();
-        const threads = await User.findOne({ id: userId }).populate({
-            path: "threads",
-            model: Thread,
-            populate: [
-                {
-                    path: "community",
-                    model: Community,
-                    select: "name image _id"
-                },
-                {
-                    path: "children",
-                    model: Thread,
-                    populate: {
-                        path: "author",
-                        model: User,
-                        select: "name image _id"
-                    },
-                },
-            ],
-        });
-        return threads;
+        const viewerId = await getCurrentUserId();
+
+        // The profile header needs the account itself; the cards do not, so only
+        // the four fields it renders are selected.
+        const user = await User.findOne({ id: accountId })
+            .select("_id id name image threads")
+            .lean<{ _id: unknown; id: string; name: string; image: string; threads: unknown[] } | null>();
+
+        if (!user) return null;
+
+        const threads = await Thread.aggregate([
+            { $match: { _id: { $in: user.threads ?? [] } } },
+            { $sort: { createdAt: -1 } },
+            ...threadCardStages(viewerId),
+        ]);
+
+        return { id: user.id, name: user.name, image: user.image, threads };
     } catch (error: any) {
         console.error("Error fetching user threads:", error);
         throw error;
@@ -135,51 +133,147 @@ export async function fetchUsers({
     }
 }
 
+interface ReplyActivity {
+    id: string;
+    parentId: string | null;
+    author: { id: string; name: string; image: string };
+}
+
+interface LikeActivity {
+    /** The liker's Clerk id, for their profile link. */
+    id: string;
+    username: string;
+    image: string;
+    threadId: string;
+    /** ISO string: formatDateString() takes one, and Dates do not serialize cleanly. */
+    likedAt: string;
+}
+
+/**
+ * Replies other people left on the given user's threads, newest first.
+ *
+ * `childIds` comes from the author's own threads; the $ne filter drops their
+ * own replies so nobody is notified about themselves.
+ */
+async function repliesFrom(childIds: any[], userId: string): Promise<ReplyActivity[]> {
+    if (childIds.length === 0) return [];
+
+    const replies = await Thread.find({
+        _id: { $in: childIds },
+        author: { $ne: userId },
+    })
+        .select("parentId author")
+        .populate({ path: "author", model: User, select: "id name image" })
+        .sort({ createdAt: -1 })
+        .lean();
+
+    return replies.map((reply: any) => ({
+        // Not `reply.id`: these are lean documents, so the Mongoose `id` virtual
+        // does not exist and the activity page was linking to /thread/undefined.
+        id: String(reply._id),
+        parentId: reply.parentId ?? null,
+        author: {
+            id: reply.author?.id ?? "",
+            name: reply.author?.name ?? "",
+            image: reply.author?.image ?? "",
+        },
+    }));
+}
+
+/** Likes other people left on the given user's threads, newest first. */
+async function likesFrom(
+    ownThreads: { _id: unknown; likes?: any[] }[]
+): Promise<LikeActivity[]> {
+    // Carry the owning thread's _id down with each like: the denormalised
+    // `like.threadId` is absent on older rows, and this one is authoritative.
+    const likes = ownThreads.flatMap((thread) =>
+        (thread.likes ?? []).map((like: any) => ({
+            userId: like.userId,
+            date: like.date,
+            threadId: String(thread._id),
+        }))
+    );
+
+    if (likes.length === 0) return [];
+
+    // One query for every liker, instead of one findById per like inside a
+    // Promise.all. The Set also collapses repeats — someone who liked ten of
+    // your threads used to be ten identical round trips.
+    const likerIds = Array.from(
+        new Set(likes.map((like) => String(like.userId)).filter(Boolean))
+    );
+
+    const users = await User.find({ _id: { $in: likerIds } })
+        .select("_id id username image")
+        .lean();
+
+    const usersById = new Map(users.map((user: any) => [String(user._id), user]));
+
+    return likes
+        .map((like) => {
+            const user = usersById.get(String(like.userId));
+            if (!user) return null;
+            // Older like entries predate the `date` default, so fall back rather
+            // than letting toISOString() throw on an Invalid Date.
+            const likedAt = like.date ? new Date(like.date) : null;
+            return {
+                id: user.id,
+                username: user.username,
+                image: user.image,
+                threadId: like.threadId,
+                likedAt:
+                    likedAt && !isNaN(likedAt.getTime())
+                        ? likedAt.toISOString()
+                        : new Date(0).toISOString(),
+            };
+        })
+        .filter((like): like is LikeActivity => like !== null)
+        .sort((a, b) => +new Date(b.likedAt) - +new Date(a.likedAt));
+}
+
+/**
+ * Replies only. The profile page renders nothing but these, and computing the
+ * likes alongside them meant every profile view paid for data it discarded.
+ */
+export async function getReplies(userId: string): Promise<ReplyActivity[]> {
+    try {
+        await connectToDb();
+
+        // Only `children` is read off the user's own threads. The old query
+        // fetched whole documents, dragging every likes array along with them.
+        const ownThreads = await Thread.find({ author: userId })
+            .select("children")
+            .lean();
+
+        return await repliesFrom(
+            ownThreads.flatMap((thread: any) => thread.children ?? []),
+            userId
+        );
+    } catch (error) {
+        console.error("Error fetching replies: ", error);
+        throw error;
+    }
+}
+
+/** Both halves, for the activity page — which is the only caller that shows likes. */
 export async function getActivity(userId: string) {
     try {
         await connectToDb();
 
-        const userThreads = await Thread.find({ author: userId });
+        const ownThreads = await Thread.find({ author: userId })
+            .select("likes children")
+            .lean();
 
-        const likedUserdata = userThreads.reduce((acc: any[], userThread) => {
-            return acc.concat(userThread.likes);
-        }, []);
+        // Independent of each other, so they overlap rather than queue.
+        const [replies, likedUsers] = await Promise.all([
+            repliesFrom(
+                ownThreads.flatMap((thread: any) => thread.children ?? []),
+                userId
+            ),
+            likesFrom(ownThreads as any),
+        ]);
 
-
-        const likedUsers = await Promise.all(
-            likedUserdata.map(async (like) => {
-                const user = await User.findById(like.userId).select("id _id username image");
-                if (user) {
-                    return {
-                        ...user.toObject(), 
-                        threadId: like.threadId,
-                        likedAt: like.date 
-                    };
-                }
-                return null;
-            })
-        );
-
-        const validLikedUsers = likedUsers.filter(user => user !== null);
-
-
-        const childThreadIds = userThreads.reduce((acc, userThread) => {
-            return acc.concat(userThread.children);
-        }, []);
-
-        const replies = await Thread.find({
-            _id: { $in: childThreadIds },
-            author: { $ne: userId },
-        }).populate({
-            path: "author",
-            model: User,
-            select: "name image _id id",
-        }).lean().exec();
-
-        return {
-            replies,
-            likedUsers: validLikedUsers
-        };
+        return { replies, likedUsers };
     } catch (error) {
         console.error("Error fetching activity: ", error);
         throw error;
