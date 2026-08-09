@@ -49,6 +49,21 @@ const INDEXES = {
     [{ id: 1 }, { unique: true }],
     [{ members: 1 }, {}],
   ],
+  outboxes: [
+    [{ eventId: 1 }, { unique: true }],
+    // The relay's only query. Partial, so the index stays proportional to the
+    // backlog rather than to every event ever emitted.
+    [{ createdAt: 1 }, { partialFilterExpression: { published: false } }],
+  ],
+  notifications: [
+    // The collapse key the consumer upserts on. Unique so two workers handling
+    // the same thread converge on one row instead of racing into two.
+    [{ recipient: 1, kind: 1, threadId: 1 }, { unique: true }],
+    // The activity feed: one recipient, newest first.
+    [{ recipient: 1, lastActorAt: -1 }, {}],
+    // The unread badge count.
+    [{ recipient: 1, readAt: 1 }, {}],
+  ],
 };
 
 /**
@@ -73,6 +88,20 @@ async function assertNoDuplicates(db, collection, field) {
   }
 }
 
+/**
+ * indexes() throws "ns does not exist" for a collection that has never been
+ * written to, which is the normal state of a new one — createIndex() below
+ * creates it. Absent is not an error, it just means nothing exists yet.
+ */
+async function listIndexes(db, collection) {
+  try {
+    return await db.collection(collection).indexes();
+  } catch (error) {
+    if (/ns does not exist/i.test(error.message)) return [];
+    throw error;
+  }
+}
+
 async function main() {
   if (!process.env.MONGODB_URL) {
     throw new Error('Missing MONGODB_URL in .env');
@@ -86,7 +115,7 @@ async function main() {
 
   for (const [collection, specs] of Object.entries(INDEXES)) {
     console.log(`\n${collection}`);
-    const existing = (await db.collection(collection).indexes()).map((i) =>
+    const existing = (await listIndexes(db, collection)).map((i) =>
       JSON.stringify(i.key)
     );
 
@@ -101,7 +130,7 @@ async function main() {
 
   console.log('\nFinal index state:');
   for (const collection of Object.keys(INDEXES)) {
-    const indexes = await db.collection(collection).indexes();
+    const indexes = await listIndexes(db, collection);
     console.log(`  ${collection}: ${indexes.map((i) => i.name).join(', ')}`);
   }
 

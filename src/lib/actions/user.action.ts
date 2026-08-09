@@ -139,16 +139,6 @@ interface ReplyActivity {
     author: { id: string; name: string; image: string };
 }
 
-interface LikeActivity {
-    /** The liker's Clerk id, for their profile link. */
-    id: string;
-    username: string;
-    image: string;
-    threadId: string;
-    /** ISO string: formatDateString() takes one, and Dates do not serialize cleanly. */
-    likedAt: string;
-}
-
 /**
  * Replies other people left on the given user's threads, newest first.
  *
@@ -180,57 +170,6 @@ async function repliesFrom(childIds: any[], userId: string): Promise<ReplyActivi
     }));
 }
 
-/** Likes other people left on the given user's threads, newest first. */
-async function likesFrom(
-    ownThreads: { _id: unknown; likes?: any[] }[]
-): Promise<LikeActivity[]> {
-    // Carry the owning thread's _id down with each like: the denormalised
-    // `like.threadId` is absent on older rows, and this one is authoritative.
-    const likes = ownThreads.flatMap((thread) =>
-        (thread.likes ?? []).map((like: any) => ({
-            userId: like.userId,
-            date: like.date,
-            threadId: String(thread._id),
-        }))
-    );
-
-    if (likes.length === 0) return [];
-
-    // One query for every liker, instead of one findById per like inside a
-    // Promise.all. The Set also collapses repeats — someone who liked ten of
-    // your threads used to be ten identical round trips.
-    const likerIds = Array.from(
-        new Set(likes.map((like) => String(like.userId)).filter(Boolean))
-    );
-
-    const users = await User.find({ _id: { $in: likerIds } })
-        .select("_id id username image")
-        .lean();
-
-    const usersById = new Map(users.map((user: any) => [String(user._id), user]));
-
-    return likes
-        .map((like) => {
-            const user = usersById.get(String(like.userId));
-            if (!user) return null;
-            // Older like entries predate the `date` default, so fall back rather
-            // than letting toISOString() throw on an Invalid Date.
-            const likedAt = like.date ? new Date(like.date) : null;
-            return {
-                id: user.id,
-                username: user.username,
-                image: user.image,
-                threadId: like.threadId,
-                likedAt:
-                    likedAt && !isNaN(likedAt.getTime())
-                        ? likedAt.toISOString()
-                        : new Date(0).toISOString(),
-            };
-        })
-        .filter((like): like is LikeActivity => like !== null)
-        .sort((a, b) => +new Date(b.likedAt) - +new Date(a.likedAt));
-}
-
 /**
  * Replies only. The profile page renders nothing but these, and computing the
  * likes alongside them meant every profile view paid for data it discarded.
@@ -255,32 +194,11 @@ export async function getReplies(userId: string): Promise<ReplyActivity[]> {
     }
 }
 
-/** Both halves, for the activity page — which is the only caller that shows likes. */
-export async function getActivity(userId: string) {
-    try {
-        await connectToDb();
-
-        const ownThreads = await Thread.find({ author: userId })
-            .select("likes children")
-            .lean();
-
-        // Independent of each other, so they overlap rather than queue.
-        const [replies, likedUsers] = await Promise.all([
-            repliesFrom(
-                ownThreads.flatMap((thread: any) => thread.children ?? []),
-                userId
-            ),
-            likesFrom(ownThreads as any),
-        ]);
-
-        return { replies, likedUsers };
-    } catch (error) {
-        console.error("Error fetching activity: ", error);
-        throw error;
-    }
-}
-
-
+// getActivity() lived here. It loaded every thread the viewer had authored and
+// flattened every embedded like in memory on each page view, so the cost of one
+// render grew with the account's whole history — and it could express neither
+// read state nor pagination. The activity feed is now materialised by the
+// worker and read through fetchNotifications() in notification.action.ts.
 
 export async function fetchFriends(userId: string) {
     try {
