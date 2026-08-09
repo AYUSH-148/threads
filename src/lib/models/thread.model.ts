@@ -30,7 +30,7 @@ const threadSchema = new mongoose.Schema({
 // The { parentId: 1 } prefix also serves fetchAllChildThreads().
 threadSchema.index({ parentId: 1, createdAt: -1 });
 
-// getActivity() -> Thread.find({ author })
+// Profile "Replies" tab (getReplies) -> Thread.find({ author })
 threadSchema.index({ author: 1 });
 
 // Profile "Tagged" tab (fetchtaggedByUsers) -> Thread.find({ tags })

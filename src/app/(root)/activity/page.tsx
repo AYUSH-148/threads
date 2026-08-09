@@ -2,99 +2,131 @@ import Image from "next/image";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-import { formatDateString } from '@/lib/utils'
-import { fetchUser, getActivity } from "@/lib/actions/user.action";
 
-async function Page() {
+import Pagination from "@/components/Pagination";
+import MarkAllReadButton from "@/components/MarkAllReadButton";
+import { formatDateString } from "@/lib/utils";
+import { fetchUser } from "@/lib/actions/user.action";
+import {
+  fetchNotifications,
+  type NotificationActor,
+  type NotificationRow,
+} from "@/lib/actions/notification.action";
+
+/**
+ * Reads materialised notification rows rather than deriving the feed.
+ *
+ * The previous version called getActivity(), which loaded every thread the
+ * viewer had ever authored and flattened every embedded like into memory on
+ * each page view — and could not express read state or pagination at all.
+ */
+async function Page({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
   const user = await currentUser();
   if (!user) return null;
 
   const userInfo = await fetchUser(user.id);
   if (!userInfo?.onboarded) redirect("/onboarding");
 
-  const activity = await getActivity(userInfo._id);
+  const pageNumber = searchParams?.page ? +searchParams.page : 1;
+  const { notifications, isNext } = await fetchNotifications(pageNumber, 20);
 
-  // `as const` keeps this a discriminated union, so the branches below narrow to
-  // the right shape instead of both collapsing to a widened `string` tag.
-  const combinedActivity = [
-    ...activity.replies.map((reply) => ({
-      type: "reply" as const,
-      data: reply,
-    })),
-    ...activity.likedUsers.map((like) => ({
-      type: "like" as const,
-      data: like,
-    })),
-  ];
+  const hasUnread = notifications.some((notification) => notification.unread);
 
   return (
     <>
-      <h1 className="head-text">Activity</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="head-text">Activity</h1>
+        {hasUnread && <MarkAllReadButton />}
+      </div>
 
       <section className="mt-10 flex flex-col gap-5">
-        {combinedActivity.length > 0 ? (
-          <>
-            {combinedActivity.map((activity, index) => (
-              <Link
-                key={index}
-                href={activity.type === "reply" ? `/thread/${activity.data.id}` : `/thread/${activity.data.threadId}`}
-
-              >
-                <div className="flex items-center justify-between activity-card ">
-                  <article className="flex items-center gap-2">
-                    {activity.type === "reply" ? (
-                      <Image
-                        src={activity.data.author.image}
-                        alt="user_logo"
-                        width={20}
-                        height={20}
-                        className="rounded-full object-cover"
-                      />
-                    ) : (
-                      <Image
-                        src={activity.data.image}
-                        alt="user_logo"
-                        width={20}
-                        height={20}
-                        className="rounded-full object-cover"
-                      />
-                    )}
-                    <p className="!text-small-regular text-light-1">
-                      {activity.type === "reply" ? (
-                        <>
-                          <Link href={`/profile/${activity.data.author.id}`} className="mr-1 text-primary-500">
-                            {activity.data.author.name}
-                          </Link>{" "}
-                          replied to your thread
-                        </>
-                      ) : (
-                        <>
-                          <Link href={`/profile/${activity.data.id}`} className="mr-1 text-primary-500">
-                            {activity.data.username}
-                          </Link>{" "}
-                          liked your thread
-                        </>
-                      )}
-
-                    </p>
-                  </article>
-                  {activity.type === "like" &&
-                    <p className="text-white text-[12px]">
-                      {formatDateString(activity.data.likedAt)}
-                    </p>
-                  }
-                </div>
-
-              </Link>
-
-            ))}
-          </>
+        {notifications.length > 0 ? (
+          notifications.map((notification) => (
+            <NotificationCard key={notification.id} notification={notification} />
+          ))
         ) : (
           <p className="!text-base-regular text-light-3">No activity yet</p>
         )}
       </section>
+
+      <Pagination path="activity" pageNumber={pageNumber} isNext={isNext} />
     </>
   );
+}
+
+function NotificationCard({ notification }: { notification: NotificationRow }) {
+  const [lead, ...rest] = notification.actors;
+
+  // A notification always has at least one actor, but the actor's User document
+  // can have been deleted since — so render defensively rather than crashing the
+  // whole page on one dangling reference.
+  if (!lead) return null;
+
+  return (
+    <Link href={`/thread/${notification.threadId}`}>
+      <div
+        className={`activity-card flex items-center justify-between gap-3 ${
+          notification.unread ? "border-l-2 border-primary-500 pl-3" : ""
+        }`}
+      >
+        <article className="flex min-w-0 items-center gap-2">
+          <ActorAvatars actors={notification.actors} />
+
+          <p className="!text-small-regular min-w-0 text-light-1">
+            <Link href={`/profile/${lead.id}`} className="mr-1 text-primary-500">
+              {lead.name || lead.username}
+            </Link>
+            {rest.length > 0 && othersLabel(notification.actorCount)}{" "}
+            {VERBS[notification.kind]}
+            {notification.threadPreview && (
+              <span className="ml-1 text-light-3">
+                &ldquo;{truncate(notification.threadPreview, 48)}&rdquo;
+              </span>
+            )}
+          </p>
+        </article>
+
+        <p className="shrink-0 text-[12px] text-light-3">
+          {formatDateString(notification.lastActorAt)}
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+/** Up to three overlapping avatars, most recent first. */
+function ActorAvatars({ actors }: { actors: NotificationActor[] }) {
+  return (
+    <span className="flex shrink-0 items-center">
+      {actors.map((actor, index) => (
+        <Image
+          key={`${actor.id}-${index}`}
+          src={actor.image}
+          alt=""
+          width={20}
+          height={20}
+          className={`rounded-full object-cover ${index > 0 ? "-ml-2" : ""}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** actorCount includes the lead actor, who is already named. */
+function othersLabel(actorCount: number): string {
+  const others = actorCount - 1;
+  return others === 1 ? " and 1 other" : ` and ${others} others`;
+}
+
+const VERBS: Record<NotificationRow["kind"], string> = {
+  like: "liked your thread",
+  reply: "replied to your thread",
+  community_post: "posted in your community",
+};
+
+function truncate(text: string, max: number): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  return collapsed.length > max ? `${collapsed.slice(0, max)}…` : collapsed;
 }
 
 export default Page;
