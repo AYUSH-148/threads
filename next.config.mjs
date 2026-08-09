@@ -1,10 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true
-  },
   experimental: {
-    serverComponentsExternalPackages: ["mongoose"],
+    // Both use Node built-ins the bundler cannot polyfill, and both are only
+    // ever imported on the server.
+    serverComponentsExternalPackages: ["mongoose", "redis"],
     serverActions: {
       bodySizeLimit: '10mb',
     },

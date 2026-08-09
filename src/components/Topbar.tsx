@@ -3,7 +3,14 @@ import { dark } from "@clerk/themes";
 import Image from "next/image";
 import Link from "next/link";
 
-function Topbar() {
+import NotificationBell from "./NotificationBell";
+import { getUnreadCount } from "@/lib/actions/notification.action";
+
+async function Topbar() {
+  // Rendered server-side so the badge is correct on first paint; the client
+  // component takes over from there via SSE.
+  const unreadCount = await getUnreadCount();
+
   return (
     <nav className='topbar'>
       <Link href='/' className='flex items-center gap-4'>
@@ -12,6 +19,10 @@ function Topbar() {
       </Link>
 
       <div className='flex items-center gap-1'>
+        <SignedIn>
+          <NotificationBell initialCount={unreadCount} />
+        </SignedIn>
+
         <div className='block md:hidden'>
           <SignedIn>
             <SignOutButton>

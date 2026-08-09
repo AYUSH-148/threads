@@ -7,6 +7,8 @@ import User from "../models/user.model";
 import { connectToDb } from "../mongoose"
 import { getCurrentUserId, requireCurrentUser } from "../auth";
 import { threadCardStages, toThreadCardFields } from "../aggregations/threadCard";
+import { withTransaction } from "../db/transaction";
+import { emit } from "../events/emit";
 import mongoose from "mongoose";
 
 
@@ -46,22 +48,43 @@ export async function createThread({ text, communityId, path, tags }: ThreadPara
         await connectToDb();
         const communityIdObject = await Community.findOne({ id: communityId }, { _id: 1 }) //including _id in result
 
-        const createThread = await Thread.create({
-            text,
-            author,
-            community: communityIdObject?._id ?? null,
-            parentId: null,
-            tags,
-        })
+        // Three writes that have to agree with each other: the thread, the
+        // author's thread list, and the community's. Previously a failure
+        // between them left a thread nobody's profile listed.
+        await withTransaction(async (session) => {
+            const [thread] = await Thread.create(
+                [{
+                    text,
+                    author,
+                    community: communityIdObject?._id ?? null,
+                    parentId: null,
+                    tags,
+                }],
+                { session }
+            );
 
-        await User.findByIdAndUpdate(author, {
-            $push: { threads: createThread._id }
-        })
-        if (communityIdObject) {
-            await Community.findByIdAndUpdate(communityIdObject, {
-                $push: { threads: createThread._id }
-            })
-        }
+            await User.updateOne(
+                { _id: author },
+                { $push: { threads: thread._id } },
+                { session }
+            );
+
+            if (communityIdObject) {
+                await Community.updateOne(
+                    { _id: communityIdObject._id },
+                    { $push: { threads: thread._id } },
+                    { session }
+                );
+
+                // Fans out to every member in the worker. Doing it here would
+                // make the poster wait on one write per member.
+                await emit(session, "community.thread.created", author, {
+                    threadId: String(thread._id),
+                    communityId: String(communityIdObject._id),
+                });
+            }
+        });
+
         revalidatePath(path)
     } catch (error: any) {
         throw new Error(`Failed to create thread: ${error.message}`);
@@ -203,26 +226,36 @@ export async function addCommentToThread(
         const { userId } = await requireCurrentUser();
         await connectToDb();
 
-        // exists() rather than findById(): the parent was only ever loaded to
-        // push onto it, which dragged its entire likes and children arrays into
-        // memory to append one id.
-        if (!(await Thread.exists({ _id: threadId }))) {
-            throw new Error("Thread not found");
-        }
+        await withTransaction(async (session) => {
+            // Only `author` is read: it is the notification recipient, and
+            // loading the whole parent would drag its likes and children arrays
+            // into memory to append one id.
+            const parent = await Thread.findById(threadId)
+                .select("author")
+                .session(session)
+                .lean<{ author: unknown } | null>();
 
-        const commentThread = new Thread({
-            text: commentText,
-            parentId: threadId,
-            author: userId
-        })
-        const savedCommentThread = await commentThread.save();
+            if (!parent) throw new Error("Thread not found");
 
-        // $push appends server-side. save() rewrote the whole array, so two
-        // people commenting at once could drop one of the two comments.
-        await Thread.updateOne(
-            { _id: threadId },
-            { $push: { children: savedCommentThread._id } }
-        );
+            const [comment] = await Thread.create(
+                [{ text: commentText, parentId: threadId, author: userId }],
+                { session }
+            );
+
+            // $push appends server-side. save() rewrote the whole array, so two
+            // people commenting at once could drop one of the two comments.
+            await Thread.updateOne(
+                { _id: threadId },
+                { $push: { children: comment._id } },
+                { session }
+            );
+
+            await emit(session, "thread.commented", userId, {
+                threadId: String(threadId),
+                commentId: String(comment._id),
+                threadAuthorId: String(parent.author),
+            });
+        });
 
         revalidatePath(path)
     } catch (err: any) {
@@ -238,28 +271,47 @@ export async function handleLikeToThread(threadId: string, path: string) {
 
         const viewerId = new mongoose.Types.ObjectId(userId);
 
-        // Toggle as two conditional atomic updates rather than read-modify-save.
-        // The old version loaded every like into memory to flip one of them, and
-        // save() wrote the whole array back — so two people liking the same
-        // thread at once would clobber each other's entry.
-        const unliked = await Thread.updateOne(
-            { _id: threadId, "likes.userId": viewerId },
-            { $pull: { likes: { userId: viewerId } } }
-        );
+        await withTransaction(async (session) => {
+            const thread = await Thread.findById(threadId)
+                .select("author")
+                .session(session)
+                .lean<{ author: unknown } | null>();
 
-        if (unliked.matchedCount === 0) {
+            if (!thread) throw new Error("Thread not found");
+
+            // Toggle as two conditional atomic updates rather than
+            // read-modify-save. The old version loaded every like into memory to
+            // flip one of them, and save() wrote the whole array back — so two
+            // people liking the same thread at once would clobber each other.
+            const unliked = await Thread.updateOne(
+                { _id: threadId, "likes.userId": viewerId },
+                { $pull: { likes: { userId: viewerId } } },
+                { session }
+            );
+
+            // Unliking emits nothing: there is no notification to send, and
+            // retracting one the recipient may already have seen is worse than
+            // leaving it. Only the like direction is an event.
+            if (unliked.matchedCount > 0) return;
+
             // The $ne guard makes the insert idempotent: a double-submit cannot
             // produce two like entries for the same user.
             const liked = await Thread.updateOne(
                 { _id: threadId, "likes.userId": { $ne: viewerId } },
-                { $push: { likes: { userId: viewerId, threadId, date: new Date() } } }
+                { $push: { likes: { userId: viewerId, threadId, date: new Date() } } },
+                { session }
             );
 
             // Neither branch matched, so the thread itself is gone.
             if (liked.matchedCount === 0) {
                 throw new Error("Thread not found");
             }
-        }
+
+            await emit(session, "thread.liked", userId, {
+                threadId: String(threadId),
+                threadAuthorId: String(thread.author),
+            });
+        });
 
         revalidatePath(path);
     } catch (error) {
