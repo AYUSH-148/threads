@@ -1,8 +1,6 @@
-import { CONSUMER_GROUP, STREAM_KEY, type Redis } from "../redis";
+import { CONSUMER_GROUP, DLQ_KEY, STREAM_KEY, type Redis } from "../redis";
 import { DomainEventSchema, type DomainEvent } from "./types";
 import type { DeliveredEvent, EventBus, RawEntry } from "./bus";
-
-const DLQ_KEY = `${STREAM_KEY}:dlq`;
 
 /** Entries are trimmed to roughly this many; '~' lets Redis trim on node boundaries. */
 const MAXLEN = 100_000;

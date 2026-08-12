@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+    // Set explicitly because it was not: with no target, `tsc --noEmit` checks
+    // the whole repo against ES5 semantics, which rejects ordinary things like
+    // iterating a Set. Next transpiles with SWC and browserslist rather than
+    // this setting, and the API service and worker run on Node 20 — so nothing
+    // here needs to pretend to be ES5.
+    "target": "es2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,

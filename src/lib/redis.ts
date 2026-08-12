@@ -68,3 +68,13 @@ export const userChannel = (userId: string) => `user:${userId}`;
 /** The event log the worker's consumer group reads from. */
 export const STREAM_KEY = "stream:notifications";
 export const CONSUMER_GROUP = "notification-writer";
+
+/**
+ * Where unparseable and repeatedly-failing entries are parked.
+ *
+ * Declared here beside the stream it belongs to rather than privately in the bus
+ * adapter, because the API service's /metrics endpoint reports its depth — a
+ * non-zero DLQ is the signal that events are being dropped, and it is worth
+ * exactly one definition of the key.
+ */
+export const DLQ_KEY = `${STREAM_KEY}:dlq`;
