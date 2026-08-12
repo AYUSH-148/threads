@@ -7,11 +7,12 @@ import Pagination from "@/components/Pagination";
 import MarkAllReadButton from "@/components/MarkAllReadButton";
 import { formatDateString } from "@/lib/utils";
 import { fetchUser } from "@/lib/actions/user.action";
-import {
-  fetchNotifications,
-  type NotificationActor,
-  type NotificationRow,
-} from "@/lib/actions/notification.action";
+import { getCurrentUserId } from "@/lib/auth";
+import { listNotifications } from "@/lib/notifications/service";
+import type {
+  NotificationActor,
+  NotificationRow,
+} from "@/lib/notifications/types";
 
 /**
  * Reads materialised notification rows rather than deriving the feed.
@@ -19,6 +20,11 @@ import {
  * The previous version called getActivity(), which loaded every thread the
  * viewer had ever authored and flattened every embedded like into memory on
  * each page view — and could not express read state or pagination at all.
+ *
+ * The first page is rendered from the shared query module; the client takes over
+ * from there through the API service. Pagination is a full navigation, so it
+ * comes back through here rather than fetching — which keeps the feed
+ * server-rendered and linkable.
  */
 async function Page({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
   const user = await currentUser();
@@ -27,8 +33,14 @@ async function Page({ searchParams }: { searchParams: { [key: string]: string | 
   const userInfo = await fetchUser(user.id);
   if (!userInfo?.onboarded) redirect("/onboarding");
 
-  const pageNumber = searchParams?.page ? +searchParams.page : 1;
-  const { notifications, isNext } = await fetchNotifications(pageNumber, 20);
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
+
+  // `searchParams` is whatever is in the URL, so `?page=abc` reaches here as NaN
+  // and `?page=-3` as a negative. Normalised here as well as in the query module,
+  // because the pager below renders this number back to the user.
+  const pageNumber = Math.max(1, Math.floor(Number(searchParams?.page) || 1));
+  const { notifications, isNext } = await listNotifications(userId, { page: pageNumber });
 
   const hasUnread = notifications.some((notification) => notification.unread);
 

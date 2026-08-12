@@ -198,7 +198,7 @@ export async function getReplies(userId: string): Promise<ReplyActivity[]> {
 // flattened every embedded like in memory on each page view, so the cost of one
 // render grew with the account's whole history — and it could express neither
 // read state nor pagination. The activity feed is now materialised by the
-// worker and read through fetchNotifications() in notification.action.ts.
+// worker and read through listNotifications() in src/lib/notifications/service.ts.
 
 export async function fetchFriends(userId: string) {
     try {
