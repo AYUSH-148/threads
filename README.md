@@ -32,7 +32,7 @@ in [Why three services](#-why-three-services).
 | **Validation** | Zod (shared by the API's request schemas and the app's forms), React Hook Form |
 | **Testing** | Vitest + Supertest — 79 tests, no live infrastructure needed |
 | **Observability** | Request-id correlation, structured JSON logs, `/healthz` `/readyz` `/metrics` |
-| **Packaging** | Docker (`server/Dockerfile`, `worker/Dockerfile`), Docker Compose for local deps |
+| **Packaging** | Docker — an image per service, Compose for local dependencies or the whole stack |
 
 ---
 
@@ -337,7 +337,7 @@ notifications.
 
 | Component | Host | Notes |
 | :--- | :--- | :--- |
-| Next.js app | Vercel | Set `NEXT_PUBLIC_API_URL` to the API's public URL |
+| Next.js app | Vercel | Set `NEXT_PUBLIC_API_URL` to the API's public URL. Or containerise it — see [Docker](#-docker) |
 | API service | Railway / Fly / Render | Long-running. `npm run api`, or build `server/Dockerfile`. Point readiness at `/readyz` |
 | Worker | Railway / Fly / Render | Long-running. `npm run worker`, or `worker/Dockerfile` |
 | MongoDB | Atlas | Replica set required |
@@ -347,6 +347,62 @@ The API and worker must be somewhere that keeps a process alive and forwards
 `SIGTERM` — both drain on it, and the API's drain is what closes open SSE streams
 so a deploy does not hang waiting for responses that never end.
 
-Docker is optional throughout: `docker-compose.yml` is a local-development
-convenience for MongoDB and Redis, and the Dockerfiles are one way to package the
-two Node services rather than a requirement for running them.
+---
+
+## 🐳 Docker
+
+One image per service:
+
+| Image | Dockerfile | Shape |
+| :--- | :--- | :--- |
+| Web | [`Dockerfile`](Dockerfile) | Three stages — deps, build, runtime — on Next's `standalone` output |
+| API | [`server/Dockerfile`](server/Dockerfile) | Single stage; runs TypeScript through `tsx` |
+| Worker | [`worker/Dockerfile`](worker/Dockerfile) | Single stage; runs TypeScript through `tsx` |
+
+All three build from the repo root, so the API and worker import the Mongoose
+models, the notification queries and the Redis key names straight out of `src/` —
+one definition shared by three services rather than three that drift.
+
+```bash
+# Dependencies only (the default). MongoDB + Redis; Node processes on the host.
+docker compose up -d
+
+# Everything, containerised.
+docker compose --profile app up --build
+```
+
+The `app` profile keeps `docker compose up -d` meaning what it always meant. With
+the profile, all three services are built and run, reading their configuration
+from `.env`.
+
+### Things worth knowing before you build
+
+**`NEXT_PUBLIC_*` are build arguments, not environment variables.** They are
+substituted into the client bundle at build time — `NEXT_PUBLIC_API_URL` appears
+verbatim in two compiled chunks — so a container started with a different value
+silently ignores it. The image must be rebuilt to change them.
+
+**No secrets in the web image.** `docker history` shows every `ARG`, so nothing
+secret is passed that way. The build does not need any: it completes with
+`CLERK_SECRET_KEY`, `MONGODB_URL` and `REDIS_URL` all unset, because every page
+that touches them is server-rendered on demand rather than prerendered. Secrets
+reach all three services as runtime environment variables only.
+
+**`public/` is not part of the standalone trace.** Next bundles the server and the
+modules it traced; it knows nothing about static assets. `public/` and
+`.next/static` are copied separately in the runtime stage, and `.dockerignore`
+deliberately does *not* exclude `public` for that reason.
+
+**The app services point at `.env`, not at the `mongo` service.** A replica set is
+not transparently reachable across the container boundary: the healthcheck
+initiates the set as `localhost:27017`, and a driver connecting from another
+container discovers that address and then tries its own loopback. Using the local
+Mongo from a container means re-initiating the set as `mongo:27017`, which breaks
+host access on `localhost` in exchange. Pointing at Atlas avoids the trade
+entirely, and Atlas is what production uses.
+
+**`HOSTNAME=0.0.0.0` in the web image.** Next binds localhost by default, which
+inside a container means the published port accepts connections and then hangs.
+
+Docker remains optional throughout — Compose is a convenience, and the Dockerfiles
+are one way to package the services rather than a requirement for running them.
