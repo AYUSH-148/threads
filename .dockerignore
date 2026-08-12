@@ -1,9 +1,32 @@
+# Applies to every image built from this repo: Dockerfile (web),
+# server/Dockerfile (API) and worker/Dockerfile.
+
+# Reinstalled per image by `npm ci`, and a host node_modules built on Windows or
+# macOS would carry the wrong native binaries into a Linux image.
 node_modules
+
+# Rebuilt inside the builder stage. Copying a host build in would also defeat
+# layer caching, since it changes on every local `npm run dev`.
 .next
+
 .git
+.gitignore
+
+# Secrets. The web build was verified not to need them, and the API and worker
+# receive theirs as environment variables at run time.
 .env
-.env.local
+.env.*
+
 npm-debug.log*
+*.log
+tsconfig.tsbuildinfo
+
+# Editor and agent state.
+.vscode
+.idea
+.claude
+
+# Docs and local-only tooling. `public` is NOT excluded — the web build needs it,
+# and the API and worker images never copy it.
 README.md
-public
-scripts
+docker-compose.yml
