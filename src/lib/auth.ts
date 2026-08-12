@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs";
 
-import User from "./models/user.model";
-import { connectToDb } from "./mongoose";
+import { resolveUserIdByClerkId } from "./identity";
 
 /**
  * Resolves the signed-in Clerk session to its User document.
@@ -17,11 +16,10 @@ export async function requireCurrentUser() {
   const { userId: clerkId } = auth();
   if (!clerkId) throw new Error("Unauthorized");
 
-  await connectToDb();
-  const user = await User.findOne({ id: clerkId }).select("_id id");
-  if (!user) throw new Error("Unauthorized");
+  const userId = await resolveUserIdByClerkId(clerkId);
+  if (!userId) throw new Error("Unauthorized");
 
-  return { clerkId, userId: user._id.toString() };
+  return { clerkId, userId };
 }
 
 /**
@@ -37,10 +35,5 @@ export async function getCurrentUserId(): Promise<string | null> {
   const { userId: clerkId } = auth();
   if (!clerkId) return null;
 
-  await connectToDb();
-  const user = await User.findOne({ id: clerkId })
-    .select("_id")
-    .lean<{ _id: unknown } | null>();
-
-  return user ? String(user._id) : null;
+  return resolveUserIdByClerkId(clerkId);
 }

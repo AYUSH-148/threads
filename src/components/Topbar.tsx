@@ -4,12 +4,19 @@ import Image from "next/image";
 import Link from "next/link";
 
 import NotificationBell from "./NotificationBell";
-import { getUnreadCount } from "@/lib/actions/notification.action";
+import { getCurrentUserId } from "@/lib/auth";
+import { countUnread } from "@/lib/notifications/service";
 
 async function Topbar() {
   // Rendered server-side so the badge is correct on first paint; the client
-  // component takes over from there via SSE.
-  const unreadCount = await getUnreadCount();
+  // component takes over from there via SSE against the API service.
+  //
+  // The query module directly rather than the API over HTTP: this already runs on
+  // a server that can reach MongoDB, so a request to our own service would add a
+  // network round trip to every page render and a second way for the nav bar to
+  // fail. The API and the page share the query, not the transport.
+  const userId = await getCurrentUserId();
+  const unreadCount = userId ? await countUnread(userId) : 0;
 
   return (
     <nav className='topbar'>
