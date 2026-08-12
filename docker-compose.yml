@@ -1,8 +1,21 @@
-# Local development dependencies.
+# Two ways to use this file.
 #
-#   docker compose up -d
-#   MONGODB_URL=mongodb://localhost:27017/threads?replicaSet=rs0
-#   REDIS_URL=redis://localhost:6379
+# 1. Dependencies only — the default, and what the README's local workflow
+#    assumes. Starts MongoDB and Redis; the three Node processes run on the host.
+#
+#      docker compose up -d
+#      MONGODB_URL=mongodb://localhost:27017/threads?replicaSet=rs0
+#      REDIS_URL=redis://localhost:6379
+#      npm run dev:all
+#
+# 2. The whole stack in containers — web, API and worker as well:
+#
+#      docker compose --profile app up --build
+#
+#    The three app services read MONGODB_URL and REDIS_URL from your .env, so out
+#    of the box they talk to whatever the host workflow talks to (Atlas, Upstash).
+#    They are deliberately not wired to the mongo service below — see the note on
+#    the `app` profile for why pointing them at it takes one extra change.
 #
 # Mongo runs as a single-node replica set rather than a standalone: the outbox
 # write and the domain write happen in one transaction, and transactions are
@@ -43,6 +56,94 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # ---------------------------------------------------------------------------
+  # The `app` profile: the three Node services.
+  #
+  # Behind a profile so `docker compose up -d` keeps meaning "just the
+  # dependencies" — the workflow the README documents. Start these with
+  # `docker compose --profile app up --build`.
+  #
+  # MONGODB_URL and REDIS_URL come from .env rather than pointing at the mongo
+  # service above, because a replica set is not transparently reachable across the
+  # container boundary: rs.initiate() below registers the member as
+  # localhost:27017, and a driver connecting from another container discovers that
+  # address and then tries its own loopback. Using the local mongo from here means
+  # re-initiating the set as mongo:27017, which in turn breaks host access on
+  # localhost. Pointing at Atlas sidesteps the whole problem, and Atlas is what
+  # production uses anyway.
+  # ---------------------------------------------------------------------------
+
+  api:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: threads-api
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      MONGODB_URL: ${MONGODB_URL:?set MONGODB_URL in .env}
+      REDIS_URL: ${REDIS_URL:?set REDIS_URL in .env}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?set CLERK_SECRET_KEY in .env}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      # Where the browser is, not where the web container is: this is the origin
+      # CORS allows and the `azp` claim the Clerk token must carry.
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+    healthcheck:
+      # The endpoint that exists for exactly this. node:20-alpine has no curl, and
+      # Node 20 has fetch built in.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: threads-worker
+    environment:
+      NODE_ENV: production
+      MONGODB_URL: ${MONGODB_URL:?set MONGODB_URL in .env}
+      REDIS_URL: ${REDIS_URL:?set REDIS_URL in .env}
+    # No ports: it holds XREADGROUP open and polls the outbox. Nothing calls it.
+    # Scale it with `--scale worker=3` — the consumer group splits entries between
+    # replicas, and the relay lock keeps exactly one of them publishing.
+
+  web:
+    profiles: ["app"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build arguments, not environment: NEXT_PUBLIC_* values are compiled into
+      # the client bundle, so setting them at run time would have no effect.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in .env}
+    container_name: threads-web
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # Server-side only. The app renders the activity feed and the unread badge
+      # by querying MongoDB directly rather than calling the API over HTTP.
+      MONGODB_URL: ${MONGODB_URL:?set MONGODB_URL in .env}
+      REDIS_URL: ${REDIS_URL:?set REDIS_URL in .env}
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?set CLERK_SECRET_KEY in .env}
+      NEXT_CLERK_WEBHOOK_SECRET: ${NEXT_CLERK_WEBHOOK_SECRET:-}
+      UPLOADTHING_SECRET: ${UPLOADTHING_SECRET:-}
+      UPLOADTHING_APP_ID: ${UPLOADTHING_APP_ID:-}
 
 volumes:
   mongo-data:
