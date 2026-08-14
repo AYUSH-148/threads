@@ -10,13 +10,47 @@ import { getCurrentUserId } from "../auth";
 import { threadCardStages } from "../aggregations/threadCard";
 import mongoose, { FilterQuery, SortOrder } from "mongoose";
 
+/**
+ * Shapes for the read paths below.
+ *
+ * `.lean()` returns plain objects instead of hydrated Mongoose documents, which
+ * is all these callers ever wanted — the results are serialized into the RSC
+ * payload anyway. Note that lean documents carry no virtuals: that is safe here
+ * because User declares a real `id` path (the Clerk id), so `id` is a stored
+ * field rather than the _id-stringifying virtual Mongoose adds otherwise.
+ * `_id` stays `any` because it is still a BSON ObjectId at runtime.
+ */
+interface LeanUser {
+    _id: any;
+    id: string;
+    name: string;
+    username: string;
+    image: string;
+    bio: string;
+    onboarded: boolean;
+    threads: any[];
+}
+
+interface LeanUserCard {
+    _id: any;
+    id: string;
+    name: string;
+    username: string;
+    image: string;
+}
+
 export async function fetchUser(userId: String) {
     try {
         await connectToDb();
-        return await User.findOne({ id: userId }).populate({
-            path: "communities",
-            model: Community
-        })
+        // An allowlist rather than the whole document: this runs on every page
+        // render, so a field added to the schema later should not silently
+        // start shipping with it.
+        //
+        // The `communities` populate that used to be here joined the Community
+        // collection on every one of those renders for a field no page reads.
+        return await User.findOne({ id: userId })
+            .select("_id id name username image bio onboarded threads")
+            .lean<LeanUser | null>();
     } catch (error: any) {
         throw new Error(`Failed to fetch user: ${error.message}`);
     }
@@ -116,10 +150,14 @@ export async function fetchUsers({
             ]
         }
         const sortOptions = { createdAt: sortBy };
+        // UserCard renders four fields; the rest of the document, including each
+        // user's whole threads array, was going over the wire unused.
         const usersQuery = User.find(query)
             .sort(sortOptions)
             .skip(skipAmount)
-            .limit(pageSize);
+            .limit(pageSize)
+            .select("_id id name username image")
+            .lean<LeanUserCard[]>();
 
         const totalUsersCount = await User.countDocuments(query);
         const users = await usersQuery.exec();
@@ -203,15 +241,21 @@ export async function getReplies(userId: string): Promise<ReplyActivity[]> {
 export async function fetchFriends(userId: string) {
     try {
         await connectToDb();
+        // Only the ids are read off these, and only two fields off the users —
+        // both queries were fetching whole documents to build a name/id list.
         const communitiesList = await Community.find({
             members: new mongoose.Types.ObjectId(userId)
-        });
+        })
+            .select("_id")
+            .lean<{ _id: any }[]>();
 
         const communityIds = communitiesList.map(community => community._id);
 
         const users = await User.find({
             communities: { $in: communityIds }
-        });
+        })
+            .select("_id id username")
+            .lean<{ _id: any; id: string; username: string }[]>();
 
         const userList = users
             .filter(user => user._id.toString() !== userId)

@@ -9,7 +9,9 @@ const page = async() => {
     if(!user) return null;
 
     const userInfo = await fetchUser(user.id)
-    if(!userInfo.onboarded) redirect('/onboarding')
+    // Optional chaining: fetchUser returns null for a user with no document yet,
+    // which this page previously dereferenced straight into a crash.
+    if(!userInfo?.onboarded) redirect('/onboarding')
   return (
    <>
      <h1 className='head-text'>Create Thread</h1>

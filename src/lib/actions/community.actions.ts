@@ -57,18 +57,45 @@ export async function createCommunity(
   }
 }
 
+interface LeanCommunityCard {
+  _id: any;
+  id: string;
+  name: string;
+  username: string;
+  image: string;
+  bio: string;
+  members?: { _id: any; image: string }[];
+}
+
+interface LeanCommunityDetails {
+  _id: any;
+  id: string;
+  name: string;
+  username: string;
+  image: string;
+  bio: string;
+  threads: any[];
+  createdBy: { _id: any; id: string; name: string; image: string };
+  members: { _id: any; id: string; name: string; username: string; image: string }[];
+}
+
 export async function fetchCommunityDetails(id: string) {
   try {
     await connectToDb();
 
-    const communityDetails = await Community.findOne({ id }).populate([
-      "createdBy",
-      {
-        path: "members",
-        model: User,
-        select: "name username image _id id",
-      },
-    ]);
+    const communityDetails = await Community.findOne({ id })
+      .select("_id id name username image bio threads")
+      .populate([
+        // The bare "createdBy" populate pulled the full author document to read
+        // a single id off it.
+        { path: "createdBy", model: User, select: "_id id name image" },
+        {
+          path: "members",
+          model: User,
+          select: "name username image _id id",
+        },
+      ])
+      .lean<LeanCommunityDetails | null>();
 
     return communityDetails;
   } catch (error) {
@@ -113,11 +140,14 @@ export async function fetchCommunities({
   pageNumber = 1,
   pageSize = 20,
   sortBy = "desc",
+  includeMembers = true,
 }: {
   searchString?: string;
   pageNumber?: number;
   pageSize?: number;
   sortBy?: SortOrder;
+  /** Off for callers that render no member avatars — see the populate below. */
+  includeMembers?: boolean;
 }) {
   try {
     await connectToDb();
@@ -147,12 +177,24 @@ export async function fetchCommunities({
       .sort(sortOptions)
       .skip(skipAmount)
       .limit(pageSize)
-      .populate("members");
+      .select("_id id name username image bio");
+
+    // `.populate("members")` with no select pulled every member's full user
+    // document — bio, communities, entire threads array — to render an avatar.
+    // RightSidebar renders no avatars at all and lives in the layout, so it was
+    // paying for that join on every page load in the app.
+    if (includeMembers) {
+      communitiesQuery.populate({
+        path: "members",
+        model: User,
+        select: "_id image",
+      });
+    }
 
     // Count the total number of communities that match the search criteria (without pagination).
     const totalCommunitiesCount = await Community.countDocuments(query);
 
-    const communities = await communitiesQuery.exec();
+    const communities = await communitiesQuery.lean<LeanCommunityCard[]>().exec();
 
     // Check if there are more communities beyond the current page.
     const isNext = totalCommunitiesCount > skipAmount + communities.length;
