@@ -16,6 +16,12 @@ async function RightSidebar() {
   });
 
   const suggestedCommunities = await fetchCommunities({ pageSize: 4 });
+  // This list renders names and avatars only, so skip the members join — this
+  // component is in the layout and therefore runs on every page load.
+  const suggestedCOmmunities = await fetchCommunities({
+    pageSize: 4,
+    includeMembers: false,
+  });
 
   return (
     <section className="custom-scrollbar rightsidebar w-[332px]">

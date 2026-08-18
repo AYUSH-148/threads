@@ -17,7 +17,8 @@ async function Page() {
   const userData = {
     id: user.id,
     objectId: userInfo?._id,
-    username: userInfo ? userInfo?.username : user.username,
+    // Clerk's username is nullable; the form prop is not.
+    username: userInfo ? userInfo.username : user.username ?? "",
     name: userInfo ? userInfo?.name : user.firstName ?? "",
     bio: userInfo ? userInfo?.bio : "",
     image: userInfo ? userInfo?.image : user.imageUrl,

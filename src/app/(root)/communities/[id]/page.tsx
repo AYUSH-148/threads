@@ -1,4 +1,5 @@
 import { currentUser } from "@clerk/nextjs";
+import { notFound } from "next/navigation";
 
 import Icon from "@/components/ui/Icon";
 import ProfileHeader from "@/components/ProfileHeader";
@@ -20,6 +21,9 @@ async function Page({ params }: { params: { id: string } }) {
   if (!user) return null;
 
   const communityDetails = await fetchCommunityDetails(params.id);
+  // An unknown community id used to fall through to a crash on the first
+  // property access below.
+  if (!communityDetails) notFound();
 
   let invites: any[] = [];
   const bearerToken = process.env.CLERK_SECRET_KEY;
