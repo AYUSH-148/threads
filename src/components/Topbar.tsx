@@ -1,9 +1,10 @@
 import { OrganizationSwitcher, SignedIn, SignOutButton } from "@clerk/nextjs";
-import { dark } from "@clerk/themes";
-import Image from "next/image";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
 
+import BrandMark from "./BrandMark";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./theme/ThemeToggle";
 import { getCurrentUserId } from "@/lib/auth";
 import { countUnread } from "@/lib/notifications/service";
 
@@ -19,40 +20,47 @@ async function Topbar() {
   const unreadCount = userId ? await countUnread(userId) : 0;
 
   return (
-    <nav className='topbar'>
-      <Link href='/' className='flex items-center gap-4'>
-        <Image src='/logo.svg' alt='Relay logo' width={28} height={28} />
-        <p className='text-heading3-bold text-light-1 max-xs:hidden'>Relay</p>
+    <nav className="topbar">
+      <Link
+        href="/"
+        className="group flex items-center gap-2.5 rounded-pill px-1 py-1"
+        aria-label="Relay home"
+      >
+        <BrandMark
+          size={28}
+          gradientId="relayTopbarMark"
+          className="transition-transform duration-400 ease-spring group-hover:rotate-12 group-hover:scale-110"
+        />
+        <span className="font-display text-heading3-bold tracking-tight text-fg max-xs:hidden">
+          Relay
+        </span>
       </Link>
 
-      <div className='flex items-center gap-1'>
+      <div className="flex items-center gap-1">
+        <ThemeToggle />
+
         <SignedIn>
           <NotificationBell initialCount={unreadCount} />
         </SignedIn>
 
-        <div className='block md:hidden'>
+        {/* The sidebar carries the sign-out control on desktop; below md it is
+            hidden, so the topbar takes over. */}
+        <div className="md:hidden">
           <SignedIn>
             <SignOutButton>
-              <div className='flex cursor-pointer'>
-                <Image
-                  src='/assets/logout.svg'
-                  alt='logout'
-                  width={24}
-                  height={24}
-                />
-              </div>
+              <button type="button" className="icon-btn" aria-label="Sign out">
+                <LogOut className="h-[18px] w-[18px]" />
+              </button>
             </SignOutButton>
           </SignedIn>
         </div>
 
-        <OrganizationSwitcher
-          appearance={{
-            baseTheme: dark,
-            elements: {
-              organizationSwitcherTrigger: "py-2 px-4",
-            },
-          }}
-        />
+        <div className="ml-1">
+          <OrganizationSwitcher
+            afterCreateOrganizationUrl="/communities"
+            afterLeaveOrganizationUrl="/communities"
+          />
+        </div>
       </div>
     </nav>
   );

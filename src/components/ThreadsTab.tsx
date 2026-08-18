@@ -1,8 +1,10 @@
-import { fetchUserPosts } from '@/lib/actions/user.action'
 import { redirect } from 'next/navigation'
 import React from 'react'
+
+import EmptyState from './EmptyState'
 import ThreadCard from './ThreadCard'
 import { fetchCommunityPosts } from '@/lib/actions/community.actions'
+import { fetchUserPosts } from '@/lib/actions/user.action'
 
 interface Result {
     name: string,
@@ -50,8 +52,22 @@ const ThreadsTab = async ({ currentUserId, accountId, accountType }: ThreadsTabP
         redirect("/")
     }
 
+    if (result.threads.length === 0) {
+      return (
+        <EmptyState
+          icon="create"
+          title="No threads yet"
+          description={
+            accountType === "Community"
+              ? "Nothing has been posted to this community."
+              : "This account has not posted a thread yet."
+          }
+        />
+      )
+    }
+
     return (
-        <section className='mt-9 flex flex-col gap-10'>
+        <section className='stagger flex flex-col gap-4'>
         {result.threads.map((thread) => (
           <ThreadCard
             key={String(thread._id)}

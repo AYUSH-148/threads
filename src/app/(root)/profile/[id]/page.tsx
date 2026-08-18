@@ -1,106 +1,99 @@
-import Image from "next/image";
 import { currentUser } from "@clerk/nextjs";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+
+import Avatar from "@/components/ui/Avatar";
+import Icon from "@/components/ui/Icon";
+import ProfileHeader from "@/components/ProfileHeader";
+import TagsComp from "@/components/TagsComp";
 import ThreadsTab from "@/components/ThreadsTab";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { profileTabs } from "@/constants";
 import { fetchUser, getReplies } from "@/lib/actions/user.action";
-import ProfileHeader from "@/components/ProfileHeader";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Link from "next/link";
-import TagsComp from "@/components/TagsComp";
 
 async function Page({ params }: { params: { id: string } }) {
-    const user = await currentUser();
-    if (!user) return null;
+  const user = await currentUser();
+  if (!user) return null;
 
-    const userInfo = await fetchUser(params.id);
-    if (!userInfo?.onboarded) redirect("/onboarding");
+  const userInfo = await fetchUser(params.id);
+  if (!userInfo?.onboarded) redirect("/onboarding");
 
-    // This tab renders replies only, so it no longer asks for the likes half.
-    const replies = await getReplies(userInfo._id);
-    return (
-        <section>
-            <ProfileHeader
-                accountId={userInfo.id}
-                authUserId={user.id}
-                name={userInfo.name}
-                username={userInfo.username}
-                imgUrl={userInfo.image}
-                bio={userInfo.bio}
+  // This tab renders replies only, so it no longer asks for the likes half.
+  const replies = await getReplies(userInfo._id);
+
+  const counts: Record<string, number> = {
+    threads: userInfo.threads.length,
+    replies: replies.length,
+  };
+
+  return (
+    <section className="animate-fade-up">
+      <ProfileHeader
+        accountId={userInfo.id}
+        authUserId={user.id}
+        name={userInfo.name}
+        username={userInfo.username}
+        imgUrl={userInfo.image}
+        bio={userInfo.bio}
+      />
+
+      <div className="mt-6">
+        <Tabs defaultValue="threads" className="w-full">
+          <TabsList>
+            {profileTabs.map((tab) => (
+              <TabsTrigger key={tab.label} value={tab.value}>
+                <Icon name={tab.icon} className="h-4 w-4" strokeWidth={2.1} />
+                <span className="max-xs:hidden">{tab.label}</span>
+                {counts[tab.value] !== undefined && (
+                  <span className="count-pill">{counts[tab.value]}</span>
+                )}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          <TabsContent value="threads">
+            <ThreadsTab
+              currentUserId={user.id}
+              accountId={userInfo.id}
+              accountType="User"
             />
-            <div className='mt-9'>
-                <Tabs defaultValue='threads' className='w-full'>
-                    <TabsList className='tab'>
-                        {profileTabs.map((tab:any) => (
-                            <TabsTrigger key={tab.label} value={tab.value} className='tab'>
-                                <Image
-                                    src={tab.icon}
-                                    alt={tab.label}
-                                    width={24}
-                                    height={24}
-                                    className='object-contain'
-                                />
-                                <p className='max-sm:hidden'>{tab.label}</p>
+          </TabsContent>
 
-                                {tab.label === "Threads" && (
-                                    <p className='ml-1 rounded-sm bg-light-4 px-2 py-1 !text-tiny-medium text-light-2'>
-                                        {userInfo.threads.length}
-                                    </p>
-                                )}
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                    {profileTabs.map((tab) => (
-                        <TabsContent
-                            key={`content-${tab.label}`}
-                            value={tab.value}
-                            className='w-full text-light-1'
-                        >
-                            {tab.value === "threads" && (
-                                <ThreadsTab
-                                    currentUserId={user.id}
-                                    accountId={userInfo.id}
-                                    accountType='User'
-                                />
-                            )}
-                            {tab.value === "replies" && (
-                                <section className="flex flex-col gap-3 mt-4 ">
-                                    {replies.length > 0 ? (
-                                        replies.map((reply) => (
-                                            <Link key={reply.id} href={`/thread/${reply.parentId}`}>
-                                                <article className='flex items-center gap-2 bg-dark-2 rounded-md px-7 py-3'>
-                                                    <Image
-                                                        src={reply.author.image}
-                                                        alt='user_logo'
-                                                        width={36}
-                                                        height={36}
-                                                        className='rounded-full'
-                                                    />
-                                                    <p className='!text-small-regular text-light-1'>
-                                                        <span className='mr-1 text-primary-500'>
-                                                            {reply.author.name}
-                                                        </span>{" "}
-                                                        replied to your thread
-                                                    </p>
-                                                </article>
-                                            </Link>
-                                        ))
-                                    ) : (
-                                        <p className='!text-base-regular text-light-3 mt-10 mx-auto'>No activity yet</p>
-                                    )}
-                                </section>
-                            )}
+          <TabsContent value="replies">
+            {replies.length > 0 ? (
+              <div className="stagger flex flex-col gap-2.5">
+                {replies.map((reply) => (
+                  <Link key={reply.id} href={`/thread/${reply.parentId}`}>
+                    <article className="activity-card">
+                      <Avatar
+                        src={reply.author.image}
+                        alt={reply.author.name}
+                        size="sm"
+                      />
+                      <p className="text-small-regular text-fg-muted">
+                        <span className="font-semibold text-fg">
+                          {reply.author.name}
+                        </span>{" "}
+                        replied to this thread
+                      </p>
+                    </article>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="px-1 py-8 text-center text-small-regular text-fg-subtle">
+                No replies yet.
+              </p>
+            )}
+          </TabsContent>
 
-                            {tab.value==="tagged" && (
-                                <TagsComp tagStr={`${params.id}-${userInfo.username}`}/>
-                            )}
-                        </TabsContent>
-                    ))}
-
-                </Tabs>
-            </div>
-        </section>
-    )
+          <TabsContent value="tagged">
+            <TagsComp tagStr={`${params.id}-${userInfo.username}`} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </section>
+  );
 }
 
-export default Page
+export default Page;

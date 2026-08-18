@@ -2,177 +2,734 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Design tokens
+   --------------------------------------------------------------------------
+   Light is the base declaration and `.dark` overrides only the values that
+   actually differ, so a token can never exist in one theme and not the other.
+   `<html>` carries the class; `ThemeProvider` sets it, and the inline script in
+   the layout sets it before first paint so the page never flashes the wrong
+   theme.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* surfaces, lightest to most raised */
+    --canvas: 255 45% 98.5%;
+    --surface: 0 0% 100%;
+    --surface-2: 252 38% 97%;
+    --surface-3: 252 30% 94.5%;
+
+    --border-soft: 250 24% 90%;
+    --border-strong: 250 20% 81%;
+
+    /* text */
+    --fg: 252 32% 12%;
+    --fg-muted: 250 12% 40%;
+    --fg-subtle: 250 10% 54%;
+    --fg-onbrand: 0 0% 100%;
+
+    /* accents — tuned to sit against the logo's violet-to-blue gradient */
+    --brand: 248 84% 60%;
+    --brand-hover: 248 84% 53%;
+    --accent-violet: 275 85% 62%;
+    --accent-aqua: 193 92% 45%;
+
+    --danger: 353 80% 54%;
+    --success: 152 62% 36%;
+    --warning: 36 94% 48%;
+
+    /* effects */
+    --glass: 0 0% 100%;
+    --shadow: 252 40% 22%;
+    --highlight: 0 0% 100%;
+    --aurora-1: 275 90% 70%;
+    --aurora-2: 248 90% 66%;
+    --aurora-3: 193 92% 60%;
+    --aurora-strength: 0.2;
+    --ring: 248 84% 60%;
+
+    --radius: 0.875rem;
+
+    /* shadcn compatibility — the ui/* primitives reference these names */
+    --background: var(--surface);
+    --foreground: var(--fg);
+    --muted: var(--surface-2);
+    --muted-foreground: var(--fg-subtle);
+    --popover: var(--surface);
+    --popover-foreground: var(--fg);
+    --card: var(--surface);
+    --card-foreground: var(--fg);
+    --border: var(--border-soft);
+    --input: var(--border-soft);
+    --primary: var(--brand);
+    --primary-foreground: var(--fg-onbrand);
+    --secondary: var(--surface-2);
+    --secondary-foreground: var(--fg);
+    --accent: var(--surface-2);
+    --accent-foreground: var(--fg);
+    --destructive: var(--danger);
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Not neutral black: a trace of indigo in every surface is what keeps the
+       dark theme from reading as the same flat void every other social app
+       ships. */
+    --canvas: 252 34% 6%;
+    --surface: 252 26% 9.5%;
+    --surface-2: 252 22% 13.5%;
+    --surface-3: 252 20% 17%;
+
+    --border-soft: 252 18% 20%;
+    --border-strong: 252 16% 30%;
+
+    --fg: 250 44% 97%;
+    --fg-muted: 250 16% 76%;
+    --fg-subtle: 250 12% 58%;
+    --fg-onbrand: 252 40% 8%;
+
+    /* Lifted and desaturated a touch: the light-theme brand is too dense to
+       read as an accent against a dark surface. */
+    --brand: 250 92% 74%;
+    --brand-hover: 250 92% 80%;
+    --accent-violet: 280 92% 76%;
+    --accent-aqua: 191 95% 62%;
+
+    --danger: 353 92% 68%;
+    --success: 152 60% 52%;
+    --warning: 38 96% 60%;
+
+    --glass: 252 26% 10%;
+    --shadow: 252 60% 2%;
+    --highlight: 250 60% 90%;
+    --aurora-1: 280 92% 60%;
+    --aurora-2: 250 92% 62%;
+    --aurora-3: 191 95% 50%;
+    --aurora-strength: 0.26;
+    --ring: 250 92% 74%;
+
+    --destructive-foreground: 0 0% 100%;
+  }
+
+  * {
+    border-color: hsl(var(--border-soft));
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* The fixed topbar would otherwise swallow the target of every in-page
+       anchor. */
+    scroll-padding-top: 6rem;
+  }
+
+  body {
+    background-color: hsl(var(--canvas));
+    color: hsl(var(--fg));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Only the paint properties transition. Animating `all` here would drag
+       every layout property of every descendant through the theme swap. */
+    transition: background-color 0.35s ease, color 0.35s ease;
+  }
+
+  ::selection {
+    background-color: hsl(var(--brand) / 0.28);
+    color: hsl(var(--fg));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.8);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+  }
+
+  /* Firefox has no ::-webkit-scrollbar; this covers it. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+
+  /* Honour the OS setting rather than insisting on the motion design. The
+     `!important` is deliberate: it has to beat the utility classes that carry
+     the animations. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   Keyframes used by raw `animation:` declarations
+   --------------------------------------------------------------------------
+   Tailwind only emits a `@keyframes` block when a utility that references it
+   (`animate-shimmer`) actually appears in the scanned source. `.skeleton` and
+   `.stagger` below set `animation` by hand, so their keyframes have to be
+   declared here or they resolve to nothing and the element sits still.
+   ========================================================================== */
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Layout + components
+   ========================================================================== */
+
 @layer components {
-  /* main */
+  /* ---------- app shell ---------- */
+
   .main-container {
-    @apply flex min-h-screen flex-1 flex-col items-center bg-dark-1 px-6 pb-10 pt-28 max-md:pb-32 sm:px-10;
+    @apply flex min-h-screen flex-1 flex-col items-center px-4 pb-16 pt-28 max-md:pb-32 sm:px-8 lg:px-10;
   }
 
-  /* Head Text */
+  /* The ambient wash. Fixed and non-interactive so it sits behind everything
+     and never intercepts a click. */
+  .aurora-field {
+    @apply pointer-events-none fixed inset-0 -z-10 overflow-hidden;
+  }
+
+  .aurora-blob {
+    @apply absolute rounded-full;
+    filter: blur(90px);
+    opacity: var(--aurora-strength);
+    will-change: transform;
+  }
+
+  /* ---------- typography ---------- */
+
   .head-text {
-    @apply text-heading2-bold text-light-1;
+    @apply font-display text-heading2-bold text-fg;
   }
 
-  /* Activity */
-  .activity-card {
-    @apply flex items-center gap-2 rounded-md bg-dark-2 px-7 py-4;
+  /* Gradient headline. `text-transparent` clips the fill to the glyphs; the
+     shorthand needs the -webkit- prefixed pair to work in every engine. */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--accent-violet)),
+      hsl(var(--brand)) 52%,
+      hsl(var(--accent-aqua))
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
-  /* No Result */
+  .section-label {
+    @apply font-display text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-subtle;
+  }
+
   .no-result {
-    @apply text-center !text-base-regular text-light-3;
+    @apply rounded-card border border-dashed border-hairline bg-surface/50 px-6 py-10 text-center !text-base-regular text-fg-subtle;
   }
 
-  /* Community Card */
-  .community-card {
-    @apply w-full rounded-lg bg-dark-3 px-4 py-5 sm:w-96;
+  /* ---------- glass + card surfaces ---------- */
+
+  .glass {
+    @apply border border-hairline/80 shadow-glass backdrop-blur-xl;
+    background-color: hsl(var(--glass) / 0.72);
   }
 
-  .community-card_btn {
-    @apply rounded-lg bg-primary-500 px-5 py-1.5 text-small-regular !text-light-1 !important;
+  /* Backdrop filters cost a compositing pass per element. The feed can hold
+     dozens of cards, so they get a solid surface and the glass is reserved for
+     the handful of fixed chrome elements. */
+  .surface-card {
+    @apply rounded-card border border-hairline bg-surface shadow-card;
   }
 
-  /* thread card  */
-  .thread-card_bar {
-    @apply relative mt-2 w-0.5 grow rounded-full bg-neutral-800;
+  .interactive-card {
+    @apply surface-card transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-hairline-strong hover:shadow-lift;
   }
 
-  /* User card */
-  .user-card {
-    @apply flex flex-col justify-between gap-4 max-xs:rounded-xl max-xs:bg-dark-3 max-xs:p-4 xs:flex-row xs:items-center;
+  /* A gradient hairline that only resolves on hover. Painted on a pseudo
+     element so it can sit over the border without a second wrapper. */
+  .gradient-ring {
+    @apply relative;
   }
 
-  .user-card_avatar {
-    @apply flex flex-1 items-start justify-start gap-3 xs:items-center;
+  .gradient-ring::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 transition-opacity duration-300;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--accent-violet) / 0.85),
+      hsl(var(--brand) / 0.5) 45%,
+      hsl(var(--accent-aqua) / 0.7)
+    );
+    /* Masks out the middle so only the 1px padding ring is painted. */
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
   }
 
-  .user-card_btn {
-    @apply h-auto min-w-[74px] rounded-lg bg-primary-500 text-[12px] text-light-1 !important;
+  .gradient-ring:hover::before,
+  .gradient-ring:focus-within::before {
+    @apply opacity-100;
   }
 
-  .searchbar {
-    @apply flex gap-1 rounded-lg bg-dark-3 px-4 py-2;
+  /* ---------- buttons ---------- */
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill font-display text-small-semibold
+           transition-all duration-200 ease-smooth
+           active:scale-[0.97]
+           disabled:pointer-events-none disabled:opacity-50;
   }
 
-  .searchbar_input {
-    @apply border-none bg-dark-3 text-base-regular text-light-4 outline-none !important;
+  .btn-brand {
+    @apply btn-base px-5 py-2.5 text-fg-onbrand shadow-soft hover:shadow-glow;
+    background-image: linear-gradient(135deg, hsl(var(--accent-violet)), hsl(var(--brand)) 70%);
   }
+
+  .btn-soft {
+    @apply btn-base border border-hairline bg-surface-2 px-5 py-2.5 text-fg hover:border-hairline-strong hover:bg-surface-3;
+  }
+
+  .btn-ghost {
+    @apply btn-base px-3 py-2 text-fg-muted hover:bg-surface-2 hover:text-fg;
+  }
+
+  .btn-danger {
+    @apply btn-base bg-danger px-5 py-2.5 text-white hover:brightness-110;
+  }
+
+  /* Round hit target for the icon-only actions in the topbar and card footer. */
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full text-fg-subtle
+           transition-all duration-200 ease-smooth
+           hover:bg-surface-2 hover:text-fg active:scale-90;
+  }
+
+  /* ---------- chips + badges ---------- */
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-pill border border-hairline bg-surface-2 px-2.5 py-1 text-subtle-medium text-fg-muted transition-colors duration-200;
+  }
+
+  .chip-brand {
+    @apply inline-flex items-center gap-1 rounded-pill px-2.5 py-1 text-subtle-semibold text-brand transition-all duration-200 hover:-translate-y-px;
+    background-color: hsl(var(--brand) / 0.12);
+    border: 1px solid hsl(var(--brand) / 0.22);
+  }
+
+  .count-pill {
+    @apply inline-flex min-w-[18px] items-center justify-center rounded-pill px-1.5 py-0.5 text-tiny-medium font-semibold;
+    background-color: hsl(var(--brand) / 0.16);
+    color: hsl(var(--brand));
+  }
+
+  /* ---------- navigation ---------- */
 
   .topbar {
-    @apply fixed top-0 z-30 flex w-full items-center justify-between bg-dark-2 px-6 py-3;
-  }
-
-  .bottombar {
-    @apply fixed bottom-0 z-10 w-full rounded-t-3xl bg-glassmorphism p-4 backdrop-blur-lg xs:px-7 md:hidden;
-  }
-
-  .bottombar_container {
-    @apply flex items-center justify-between gap-3 xs:gap-5;
-  }
-
-  .bottombar_link {
-    @apply relative flex flex-col items-center gap-2 rounded-lg p-2 sm:flex-1 sm:px-2 sm:py-2.5;
+    @apply glass fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between gap-3 border-x-0 border-t-0 px-4 sm:px-6;
   }
 
   .leftsidebar {
-    @apply sticky left-0 top-0 z-20 flex h-screen w-fit flex-col justify-between overflow-auto border-r border-r-dark-4 bg-dark-2 pb-5 pt-28 max-md:hidden;
-  }
-
-  .leftsidebar_link {
-    @apply relative flex justify-start gap-4 rounded-lg p-4;
-  }
-
-  .pagination {
-    @apply mt-10 flex w-full items-center justify-center gap-5;
+    @apply sticky left-0 top-0 z-20 flex h-screen w-fit shrink-0 flex-col justify-between overflow-y-auto border-r border-hairline bg-surface/60 pb-6 pt-24 backdrop-blur-xl max-md:hidden;
   }
 
   .rightsidebar {
-    @apply sticky right-0 top-0 z-20 flex h-screen w-fit flex-col justify-between gap-12 overflow-auto border-l border-l-dark-4 bg-dark-2 px-10 pb-6 pt-28 max-xl:hidden;
+    @apply sticky right-0 top-0 z-20 flex h-screen w-fit shrink-0 flex-col gap-8 overflow-y-auto border-l border-hairline bg-surface/60 px-6 pb-8 pt-24 backdrop-blur-xl max-xl:hidden;
+  }
+
+  .bottombar {
+    @apply glass fixed inset-x-0 bottom-0 z-30 rounded-t-3xl border-x-0 border-b-0 px-2 pb-[env(safe-area-inset-bottom)] pt-2 md:hidden;
+  }
+
+  .nav-link {
+    @apply relative flex items-center gap-3.5 rounded-2xl px-4 py-3 text-base-medium text-fg-muted
+           transition-all duration-250 ease-smooth
+           hover:bg-surface-2 hover:text-fg;
+  }
+
+  .nav-link-active {
+    @apply text-fg-onbrand shadow-soft;
+    background-image: linear-gradient(135deg, hsl(var(--accent-violet)), hsl(var(--brand)) 75%);
+  }
+
+  /* ---------- inputs ---------- */
+
+  .searchbar {
+    @apply gradient-ring flex items-center gap-2.5 rounded-pill border border-hairline bg-surface-2 px-4 py-2.5
+           transition-colors duration-200 focus-within:bg-surface;
+  }
+
+  .searchbar_input {
+    @apply h-auto border-none bg-transparent p-0 text-base-regular text-fg placeholder:text-fg-subtle
+           focus-visible:ring-0 focus-visible:ring-offset-0 !important;
+  }
+
+  .field-input {
+    @apply w-full rounded-xl border border-hairline bg-surface-2 px-4 py-3 text-base-regular text-fg
+           placeholder:text-fg-subtle transition-all duration-200
+           hover:border-hairline-strong
+           focus:border-transparent focus:bg-surface;
+    box-shadow: 0 0 0 0 hsl(var(--brand) / 0);
+  }
+
+  .field-input:focus {
+    box-shadow: 0 0 0 3px hsl(var(--brand) / 0.22);
+    outline: none;
+  }
+
+  /* ---------- feed ---------- */
+
+  .thread-card_bar {
+    @apply relative mt-2 w-0.5 grow rounded-full;
+    background: linear-gradient(
+      to bottom,
+      hsl(var(--border-strong)),
+      hsl(var(--border-soft) / 0)
+    );
+  }
+
+  .activity-card {
+    @apply interactive-card flex items-center gap-3 px-5 py-4;
+  }
+
+  .community-card {
+    @apply interactive-card w-full p-5 sm:w-[340px];
+  }
+
+  .community-card_btn {
+    @apply btn-brand h-auto px-4 py-1.5 !text-small-semibold !important;
+  }
+
+  .user-card {
+    @apply flex flex-col justify-between gap-4 rounded-2xl border border-transparent p-3 transition-all duration-250 ease-smooth hover:border-hairline hover:bg-surface-2 xs:flex-row xs:items-center;
+  }
+
+  .user-card_avatar {
+    @apply flex flex-1 items-center justify-start gap-3;
+  }
+
+  .user-card_btn {
+    @apply btn-soft h-auto min-w-[74px] px-4 py-1.5 !text-subtle-semibold !important;
+  }
+
+  .pagination {
+    @apply mt-12 flex w-full items-center justify-center gap-3;
+  }
+
+  /* ---------- avatars ---------- */
+
+  /* Two nested rings rather than a border: the inner ring in the surface colour
+     leaves a gap so the gradient reads as a halo instead of an outline. */
+  .avatar-ring {
+    @apply rounded-full ring-2 ring-transparent transition-all duration-300 ease-smooth;
+  }
+
+  .avatar-ring-brand {
+    @apply rounded-full p-[2px];
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--accent-violet)),
+      hsl(var(--brand)) 50%,
+      hsl(var(--accent-aqua))
+    );
+  }
+
+  /* ---------- skeletons ---------- */
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-surface-2;
+  }
+
+  /* A travelling highlight rather than an opacity pulse — it reads as loading
+     rather than as a broken element. */
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--highlight) / 0.09),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      display: none;
+    }
   }
 }
 
 @layer utilities {
-  .css-invert {
-    @apply invert-[50%] brightness-200;
-  }
-
   .custom-scrollbar::-webkit-scrollbar {
-    width: 3px;
-    height: 3px;
-    border-radius: 2px;
+    width: 6px;
+    height: 6px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #09090a;
+    background: transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #5c5c7b;
-    border-radius: 50px;
+    background: hsl(var(--border-strong));
+    border-radius: 999px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #7878a3;
+    background: hsl(var(--fg-subtle));
+  }
+
+  /* Staggers a list so items arrive in sequence. Capped at 8 because past
+     that the last item waits long enough to feel broken. */
+  .stagger > * {
+    animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stagger > *:nth-child(1) { animation-delay: 0.02s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.06s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.1s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.14s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.18s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.22s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.26s; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 0.3s; }
+
+  .content-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* The old white-on-dark icon sprites are gone, but this stays for any
+     third-party mark that still needs inverting. */
+  .css-invert {
+    @apply invert-[50%] brightness-200;
   }
 }
 
-/* Clerk Responsive fix */
-.cl-organizationSwitcherTrigger .cl-userPreview .cl-userPreviewTextContainer {
-  @apply max-sm:hidden;
-}
+/* ==========================================================================
+   Third-party surfaces
+   --------------------------------------------------------------------------
+   Clerk and react-select both render their own DOM. Their appearance props
+   only reach some of it, so the rest is themed here through the same tokens —
+   which is also what makes them follow the theme toggle.
+   ========================================================================== */
 
+/* ---------- Clerk ---------- */
+
+.cl-organizationSwitcherTrigger .cl-userPreview .cl-userPreviewTextContainer,
 .cl-organizationSwitcherTrigger
   .cl-organizationPreview
   .cl-organizationPreviewTextContainer {
   @apply max-sm:hidden;
 }
 
-/* Shadcn Component Styles */
-
-/* Tab */
-.tab {
-  @apply flex min-h-[50px] flex-1 items-center gap-3 bg-dark-2 text-light-2 data-[state=active]:bg-[#0e0e12] data-[state=active]:text-light-2 !important;
+.cl-card,
+.cl-popoverBox,
+.cl-organizationSwitcherPopoverCard,
+.cl-userButtonPopoverCard {
+  background-color: hsl(var(--surface)) !important;
+  border: 1px solid hsl(var(--border-soft)) !important;
+  border-radius: 1.375rem !important;
+  box-shadow:
+    0 2px 4px hsl(var(--shadow) / 0.06),
+    0 18px 44px -14px hsl(var(--shadow) / 0.24) !important;
+  color: hsl(var(--fg)) !important;
 }
+
+.cl-headerTitle,
+.cl-organizationPreviewMainIdentifier,
+.cl-userPreviewMainIdentifier,
+.cl-accordionTriggerButton,
+.cl-profileSectionTitleText {
+  color: hsl(var(--fg)) !important;
+}
+
+.cl-headerSubtitle,
+.cl-dividerText,
+.cl-footerActionText,
+.cl-formFieldLabel,
+.cl-organizationPreviewSecondaryIdentifier,
+.cl-userPreviewSecondaryIdentifier {
+  color: hsl(var(--fg-muted)) !important;
+}
+
+.cl-formFieldInput,
+.cl-selectButton {
+  background-color: hsl(var(--surface-2)) !important;
+  border-color: hsl(var(--border-soft)) !important;
+  color: hsl(var(--fg)) !important;
+}
+
+.cl-formButtonPrimary {
+  background-image: linear-gradient(
+    135deg,
+    hsl(var(--accent-violet)),
+    hsl(var(--brand)) 70%
+  ) !important;
+  color: hsl(var(--fg-onbrand)) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  box-shadow: none !important;
+}
+
+.cl-socialButtonsBlockButton,
+.cl-alternativeMethodsBlockButton {
+  background-color: hsl(var(--surface-2)) !important;
+  border-color: hsl(var(--border-soft)) !important;
+  color: hsl(var(--fg)) !important;
+}
+
+.cl-dividerLine {
+  background-color: hsl(var(--border-soft)) !important;
+}
+
+.cl-footerActionLink,
+.cl-identityPreviewEditButton {
+  color: hsl(var(--brand)) !important;
+}
+
+.cl-internal-b3fm6y,
+.cl-logoBox {
+  filter: none;
+}
+
+/* ---------- react-select ---------- */
+
+.react-select__control {
+  background-color: hsl(var(--surface-2)) !important;
+  border-color: hsl(var(--border-soft)) !important;
+  border-radius: 0.875rem !important;
+  min-height: 48px !important;
+  box-shadow: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.react-select__control--is-focused {
+  border-color: transparent !important;
+  box-shadow: 0 0 0 3px hsl(var(--brand) / 0.22) !important;
+}
+
+.react-select__menu {
+  background-color: hsl(var(--surface)) !important;
+  border: 1px solid hsl(var(--border-soft)) !important;
+  border-radius: 0.875rem !important;
+  overflow: hidden;
+  box-shadow: 0 18px 44px -14px hsl(var(--shadow) / 0.24) !important;
+}
+
+.react-select__option {
+  background-color: transparent !important;
+  color: hsl(var(--fg)) !important;
+  cursor: pointer !important;
+}
+
+.react-select__option--is-focused {
+  background-color: hsl(var(--surface-2)) !important;
+}
+
+.react-select__option--is-selected {
+  background-color: hsl(var(--brand) / 0.16) !important;
+  color: hsl(var(--brand)) !important;
+}
+
+.react-select__placeholder,
+.react-select__input-container,
+.react-select__single-value {
+  color: hsl(var(--fg-subtle)) !important;
+}
+
+.react-select__input-container,
+.react-select__single-value {
+  color: hsl(var(--fg)) !important;
+}
+
+.react-select__multi-value {
+  background-color: hsl(var(--brand) / 0.14) !important;
+  border-radius: 999px !important;
+  padding: 1px 4px !important;
+}
+
+.react-select__multi-value__label {
+  color: hsl(var(--brand)) !important;
+  font-weight: 600 !important;
+}
+
+.react-select__multi-value__remove:hover {
+  background-color: hsl(var(--danger) / 0.18) !important;
+  color: hsl(var(--danger)) !important;
+  border-radius: 999px !important;
+}
+
+.react-select__indicator-separator {
+  background-color: hsl(var(--border-soft)) !important;
+}
+
+.react-select__dropdown-indicator,
+.react-select__clear-indicator {
+  color: hsl(var(--fg-subtle)) !important;
+}
+
+/* ---------- shadcn overrides retained from the original sheet ---------- */
 
 .no-focus {
   @apply focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0 !important;
 }
 
-/* Account Profile  */
+.tab {
+  @apply flex min-h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-transparent text-small-semibold text-fg-muted transition-all duration-250 ease-smooth
+         data-[state=active]:bg-surface data-[state=active]:text-fg data-[state=active]:shadow-soft !important;
+}
+
 .account-form_image-label {
-  @apply flex h-24 w-24 items-center justify-center rounded-full bg-dark-4 !important;
+  @apply flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-hairline bg-surface-2 !important;
 }
 
 .account-form_image-input {
-  @apply cursor-pointer border-none bg-transparent outline-none file:text-blue !important;
+  @apply cursor-pointer border-none bg-transparent text-small-regular text-fg-muted outline-none
+         file:mr-3 file:cursor-pointer file:rounded-pill file:border-0 file:bg-surface-3 file:px-4 file:py-2 file:text-small-semibold file:text-brand !important;
 }
 
 .account-form_input {
-  @apply border border-dark-4 bg-dark-3 text-light-1 !important;
+  @apply field-input !important;
 }
 
-/* Comment Form */
 .comment-form {
-  @apply mt-10 flex items-center gap-4 border-y border-y-dark-4 py-5 max-xs:flex-col !important;
+  @apply mt-8 flex items-center gap-3 rounded-card border border-hairline bg-surface p-4 shadow-card max-xs:flex-col !important;
 }
 
 .comment-form_btn {
-  @apply rounded-3xl bg-primary-500 px-8 py-2 !text-small-regular text-light-1 max-xs:w-full !important;
+  @apply btn-brand px-6 py-2.5 max-xs:w-full !important;
 }
-
-.content-text {
-  white-space: pre-wrap;
-}
-
-.react-select__control {
-  background-color: var(--bg-dark-3);
-  border-color: var(--border-dark-4);
-  color: var(--text-light-1);
-}
-
-.react-select__menu {
-  background-color: var(--bg-dark-3);
-  color: var(--text-light-1);
-}
-
-

@@ -1,14 +1,16 @@
 import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-
-
-
+import CommunityCard from "@/components/CommunityCard";
+import EmptyState from "@/components/EmptyState";
+import PageHeader from "@/components/PageHeader";
+import Pagination from "@/components/Pagination";
+import SearchBar from "@/components/SearchBar";
 import { fetchCommunities } from "@/lib/actions/community.actions";
 import { fetchUser } from "@/lib/actions/user.action";
-import SearchBar from "@/components/SearchBar";
-import CommunityCard from "@/components/CommunityCard";
-import Pagination from "@/components/Pagination";
+
+export const metadata = { title: "Communities" };
 
 async function Page({
   searchParams,
@@ -21,25 +23,38 @@ async function Page({
   const userInfo = await fetchUser(user.id);
   if (!userInfo?.onboarded) redirect("/onboarding");
 
+  const pageNumber = Math.max(1, Math.floor(Number(searchParams?.page) || 1));
   const result = await fetchCommunities({
     searchString: searchParams.q,
-    pageNumber: searchParams?.page ? +searchParams.page : 1,
+    pageNumber,
     pageSize: 25,
   });
 
   return (
     <>
-      <h1 className='head-text'>Communities</h1>
+      <PageHeader
+        icon="community"
+        title="Communities"
+        subtitle="Spaces built around a shared interest"
+      />
 
-      <div className='mt-5'>
-        <SearchBar routeType='communities' />
-      </div>
+      <Suspense fallback={<div className="h-[46px] rounded-pill bg-surface-2" />}>
+        <SearchBar routeType="communities" placeholder="Search communities" />
+      </Suspense>
 
-      <section className='mt-9 flex flex-wrap gap-4'>
+      <section className="mt-8">
         {result.communities.length === 0 ? (
-          <p className='no-result'>No Result</p>
+          <EmptyState
+            icon="community"
+            title={searchParams.q ? "No communities matched" : "No communities yet"}
+            description={
+              searchParams.q
+                ? `Nothing came back for “${searchParams.q}”.`
+                : "Create one from the organisation switcher in the top bar."
+            }
+          />
         ) : (
-          <>
+          <div className="stagger flex flex-wrap justify-center gap-4 sm:justify-start">
             {result.communities.map((community) => (
               <CommunityCard
                 key={community.id}
@@ -51,13 +66,13 @@ async function Page({
                 members={community.members}
               />
             ))}
-          </>
+          </div>
         )}
       </section>
 
       <Pagination
-        path='communities'
-        pageNumber={searchParams?.page ? +searchParams.page : 1}
+        path="communities"
+        pageNumber={pageNumber}
         isNext={result.isNext}
       />
     </>

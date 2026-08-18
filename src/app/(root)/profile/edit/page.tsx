@@ -1,9 +1,11 @@
 import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 
-import { fetchUser } from "@/lib/actions/user.action";
 import AccountProfile from "@/components/AccountProfile";
+import PageHeader from "@/components/PageHeader";
+import { fetchUser } from "@/lib/actions/user.action";
 
+export const metadata = { title: "Edit profile" };
 
 async function Page() {
   const user = await currentUser();
@@ -23,11 +25,14 @@ async function Page() {
 
   return (
     <>
-      <h1 className='head-text'>Edit Profile</h1>
-      <p className='mt-3 text-base-regular text-light-2'>Make any changes</p>
+      <PageHeader
+        icon="edit"
+        title="Edit profile"
+        subtitle="How you appear across Relay"
+      />
 
-      <section className='mt-12'>
-        <AccountProfile user={userData}  />
+      <section className="surface-card p-5 sm:p-7">
+        <AccountProfile user={userData} />
       </section>
     </>
   );
