@@ -1,7 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 
-import { Button } from "../components/ui/button";
+import Avatar from "./ui/Avatar";
 
 interface Props {
   id: string;
@@ -15,53 +14,59 @@ interface Props {
 }
 
 function CommunityCard({ id, name, username, imgUrl, bio, members }: Props) {
+  const shown = members.slice(0, 4);
+  const overflow = members.length - shown.length;
+
   return (
-    <article className='community-card'>
-      <div className='flex flex-wrap items-center gap-3'>
-        <Link href={`/communities/${id}`} className='relative h-12 w-12'>
-          <Image
-            src={imgUrl}
-            alt='community_logo'
-            fill
-            className='rounded-full object-cover'
-          />
+    <article className="community-card gradient-ring group">
+      <div className="flex items-center gap-3">
+        <Link href={`/communities/${id}`} className="shrink-0">
+          <Avatar src={imgUrl} alt={name} size="lg" />
         </Link>
 
-        <div>
+        <div className="min-w-0">
           <Link href={`/communities/${id}`}>
-            <h4 className='text-base-semibold text-light-1'>{name}</h4>
+            <h4 className="truncate font-display text-base-semibold text-fg transition-colors duration-200 group-hover:text-brand">
+              {name}
+            </h4>
           </Link>
-          <p className='text-small-medium text-gray-1'>@{username}</p>
+          <p className="truncate text-small-medium text-fg-subtle">@{username}</p>
         </div>
       </div>
 
-      <p className='mt-4 text-subtle-medium text-gray-1'>{bio}</p>
+      {/* Clamped rather than left to run: the cards sit in a wrapping grid and
+          one long bio would otherwise stretch its whole row. */}
+      <p className="mt-4 line-clamp-2 min-h-[2.5rem] text-small-regular text-fg-muted">
+        {bio || "No description yet."}
+      </p>
 
-      <div className='mt-5 flex flex-wrap items-center justify-between gap-3'>
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <Link href={`/communities/${id}`}>
-          <Button size='sm' className='community-card_btn'>
-            View
-          </Button>
+          <span className="community-card_btn">View</span>
         </Link>
 
         {members.length > 0 && (
-          <div className='flex items-center'>
-            {members.map((member, index) => (
-              <Image
-                key={index}
-                src={member.image}
-                alt={`user_${index}`}
-                width={28}
-                height={28}
-                className={`${
-                  index !== 0 && "-ml-2"
-                } rounded-full object-cover`}
-              />
-            ))}
-            {members.length > 3 && (
-              <p className='ml-1 text-subtle-medium text-gray-1'>
-                {members.length}+ Users
-              </p>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center">
+              {shown.map((member, index) => (
+                <span
+                  key={index}
+                  className={index !== 0 ? "-ml-2" : undefined}
+                  style={{ zIndex: shown.length - index }}
+                >
+                  <Avatar
+                    src={member.image}
+                    alt=""
+                    size="sm"
+                    className="ring-2 ring-surface"
+                  />
+                </span>
+              ))}
+            </span>
+            {overflow > 0 && (
+              <span className="text-subtle-medium text-fg-subtle">
+                +{overflow}
+              </span>
             )}
           </div>
         )}

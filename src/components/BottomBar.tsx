@@ -1,36 +1,56 @@
-'use client'
-import { usePathname } from 'next/navigation'
-import React from 'react'
-import { sidebarLinks } from "@/constants/index"
-import Link from 'next/link'
-import Image from 'next/image'
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@clerk/nextjs";
+
+import Icon from "./ui/Icon";
+import { isRouteActive, resolveRoute } from "./LeftSidebar";
+import { sidebarLinks } from "@/constants";
+
 const BottomBar = () => {
-    const pathname = usePathname();
-    return (
-        <section className='bottombar'>
-            <div className='flex items-center justify-between gap-3 xs:gap-5'>
-                {sidebarLinks.map((link) => {
-                    const isActive = pathname.includes(link.route)
-                    return (
+  const pathname = usePathname();
+  const { userId } = useAuth();
 
-                        <Link href={link.route} key={link.label} className={`${isActive && "bg-primary-500"} relative flex flex-col items-center gap-2 rounded-lg p-2 sm:flex-1 sm:px-2 sm:py-2.5`}>
+  return (
+    <nav className="bottombar">
+      <div className="flex items-center justify-around gap-1">
+        {sidebarLinks.map((link) => {
+          // Shares the sidebar's matcher. This used to be a bare
+          // `pathname.includes(link.route)`, which matched "/" against every
+          // route and lit Home on every page.
+          const href = resolveRoute(link.route, userId);
+          const isActive = isRouteActive(link.route, pathname);
 
-                            <Image 
-                                src={link.imgURL} 
-                                alt={link.label} 
-                                width={16} 
-                                height={16} className="object-contain" />
+          return (
+            <Link
+              href={href}
+              key={link.label}
+              aria-current={isActive ? "page" : undefined}
+              className={`relative flex flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-2 transition-all duration-250 ease-smooth active:scale-95 ${
+                isActive ? "text-brand" : "text-fg-subtle"
+              }`}
+            >
+              <Icon
+                name={link.icon}
+                className={`h-[21px] w-[21px] transition-transform duration-300 ease-spring ${
+                  isActive ? "-translate-y-px scale-110" : ""
+                }`}
+                strokeWidth={isActive ? 2.4 : 1.9}
+              />
+              <span className="text-[10px] font-semibold leading-none max-xs:hidden">
+                {link.shortLabel}
+              </span>
 
-                            <p className='text-subtle-medium text-light-1 max-sm:hidden'>
-                                {link.label.split(/\s+/)[0]}
-                            </p>
-                            
-                        </Link>
-                    )
-                })}
-            </div>
-        </section>
-    )
-}
+              {isActive && (
+                <span className="absolute inset-x-4 top-0 h-[2px] animate-scale-in rounded-full bg-brand" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
 
-export default BottomBar
+export default BottomBar;

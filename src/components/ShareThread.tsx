@@ -1,38 +1,69 @@
-"use client"
-import React from 'react'
-import Image from 'next/image'
+"use client";
 
-interface shareThreadProps {
-    id:string
-}
-const ShareThread = ({id}:shareThreadProps) => {
+import { Check, Share2 } from "lucide-react";
+import { useState } from "react";
 
-    const share = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: "Check out this link!",
-                    text: "I found this interesting:",
-                    url: `thread/${id}`, 
-                });
-                console.log("Successfully shared");
-            } catch (error) {
-                console.error("Error sharing:", error);
-            }
-        } else {
-            alert("Web Share API is not supported in your browser.");
-        }
-    };
-    return (
-        <Image
-            src='/assets/share.svg'
-            alt='heart'
-            width={24}
-            height={24}
-            className='cursor-pointer object-contain'
-            onClick={share}
-        />
-    )
+import { useToast } from "./ui/use-toast";
+
+interface ShareThreadProps {
+  id: string;
 }
 
-export default ShareThread
+const ShareThread = ({ id }: ShareThreadProps) => {
+  const { toast } = useToast();
+  const [justCopied, setJustCopied] = useState(false);
+
+  const share = async () => {
+    // The original passed the relative string `thread/${id}`, which the Web
+    // Share API resolves against the *current* page — sharing from /activity
+    // produced /activity/thread/<id>. Built from the origin instead.
+    const url = `${window.location.origin}/thread/${id}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "A thread on Relay", url });
+        return;
+      } catch (error) {
+        // Dismissing the OS share sheet rejects with AbortError. That is the
+        // user declining, not a failure, so it must not fall through to the
+        // clipboard path and claim it copied something.
+        if (error instanceof Error && error.name === "AbortError") return;
+      }
+    }
+
+    // Desktop browsers mostly have no share sheet; copying the link is the
+    // equivalent action rather than the alert() the original showed.
+    try {
+      await navigator.clipboard.writeText(url);
+      setJustCopied(true);
+      setTimeout(() => setJustCopied(false), 2000);
+      toast({
+        title: "Link copied",
+        description: "The thread link is on your clipboard.",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Could not share",
+        description: url,
+      });
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void share()}
+      aria-label="Share this thread"
+      className={`icon-btn ${justCopied ? "text-success" : "hover:text-aqua"}`}
+    >
+      {justCopied ? (
+        <Check className="h-[18px] w-[18px] animate-scale-in" strokeWidth={2.4} />
+      ) : (
+        <Share2 className="h-[18px] w-[18px]" strokeWidth={2} />
+      )}
+    </button>
+  );
+};
+
+export default ShareThread;

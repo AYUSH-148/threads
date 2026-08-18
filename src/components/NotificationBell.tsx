@@ -1,9 +1,9 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import Image from "next/image";
+import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, apiUrl } from "@/lib/api/client";
 
@@ -22,6 +22,10 @@ const BACKOFF_MAX_MS = 30_000;
  */
 function NotificationBell({ initialCount }: { initialCount: number }) {
   const [count, setCount] = useState(initialCount);
+  // Bumped only when the count goes up, so re-reads that return the same
+  // number — or a drop after "mark all read" — do not replay the animation.
+  const [pulseKey, setPulseKey] = useState(0);
+  const previousCount = useRef(initialCount);
   const { getToken, isLoaded, isSignedIn } = useAuth();
 
   const refresh = useCallback(async () => {
@@ -33,6 +37,8 @@ function NotificationBell({ initialCount }: { initialCount: number }) {
         "/api/notifications/unread-count",
         { token }
       );
+      if (fresh > previousCount.current) setPulseKey((key) => key + 1);
+      previousCount.current = fresh;
       setCount(fresh);
     } catch {
       // Transient by nature — a dropped request, a token refreshing mid-flight.
@@ -114,16 +120,25 @@ function NotificationBell({ initialCount }: { initialCount: number }) {
   return (
     <Link
       href="/activity"
-      className="relative flex cursor-pointer items-center p-2"
+      className="icon-btn relative"
       aria-label={count > 0 ? `Activity, ${count} unread` : "Activity"}
     >
-      <Image src="/assets/heart-gray.svg" alt="" width={24} height={24} />
+      {/* Keyed on the count so a new arrival remounts the bell and replays the
+          swing, rather than silently incrementing a number nobody notices. */}
+      <Bell
+        key={pulseKey}
+        className={`h-[18px] w-[18px] ${pulseKey > 0 ? "animate-heart-pop" : ""}`}
+        strokeWidth={2}
+      />
 
       {count > 0 && (
         <span
-          className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center
-                     justify-center rounded-full bg-primary-500 px-1
-                     text-[10px] font-semibold leading-none text-light-1"
+          className="absolute right-0.5 top-0.5 flex h-[17px] min-w-[17px] animate-scale-in items-center
+                     justify-center rounded-pill px-1 text-[10px] font-bold leading-none text-fg-onbrand shadow-count-badge"
+          style={{
+            backgroundImage:
+              "linear-gradient(135deg, hsl(var(--accent-violet)), hsl(var(--brand)))",
+          }}
         >
           {count > 99 ? "99+" : count}
         </span>

@@ -1,8 +1,11 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
+import { CheckCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+import { Spinner } from "./ui/spinner";
 
 import { apiFetch } from "@/lib/api/client";
 
@@ -46,9 +49,16 @@ function MarkAllReadButton() {
       type="button"
       disabled={isPending}
       onClick={() => void markRead()}
-      className="text-small-regular shrink-0 text-primary-500 disabled:opacity-50"
+      className="btn-ghost shrink-0 rounded-pill px-3 py-1.5 text-brand hover:bg-brand/10 hover:text-brand"
     >
-      {isPending ? "Marking…" : "Mark all as read"}
+      {isPending ? (
+        <Spinner className="h-3.5 w-3.5" label="Marking read" />
+      ) : (
+        <CheckCheck className="h-4 w-4" strokeWidth={2.2} />
+      )}
+      <span className="max-xs:hidden">
+        {isPending ? "Marking…" : "Mark all read"}
+      </span>
     </button>
   );
 }

@@ -1,11 +1,13 @@
-import Image from "next/image";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 
-import Pagination from "@/components/Pagination";
+import Avatar from "@/components/ui/Avatar";
+import EmptyState from "@/components/EmptyState";
 import MarkAllReadButton from "@/components/MarkAllReadButton";
-import { formatDateString } from "@/lib/utils";
+import PageHeader from "@/components/PageHeader";
+import Pagination from "@/components/Pagination";
+import { formatDateString, formatRelativeTime } from "@/lib/utils";
 import { fetchUser } from "@/lib/actions/user.action";
 import { getCurrentUserId } from "@/lib/auth";
 import { listNotifications } from "@/lib/notifications/service";
@@ -13,6 +15,8 @@ import type {
   NotificationActor,
   NotificationRow,
 } from "@/lib/notifications/types";
+
+export const metadata = { title: "Activity" };
 
 /**
  * Reads materialised notification rows rather than deriving the feed.
@@ -26,7 +30,11 @@ import type {
  * comes back through here rather than fetching — which keeps the feed
  * server-rendered and linkable.
  */
-async function Page({ searchParams }: { searchParams: { [key: string]: string | undefined } }) {
+async function Page({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | undefined };
+}) {
   const user = await currentUser();
   if (!user) return null;
 
@@ -40,24 +48,40 @@ async function Page({ searchParams }: { searchParams: { [key: string]: string | 
   // and `?page=-3` as a negative. Normalised here as well as in the query module,
   // because the pager below renders this number back to the user.
   const pageNumber = Math.max(1, Math.floor(Number(searchParams?.page) || 1));
-  const { notifications, isNext } = await listNotifications(userId, { page: pageNumber });
+  const { notifications, isNext } = await listNotifications(userId, {
+    page: pageNumber,
+  });
 
-  const hasUnread = notifications.some((notification) => notification.unread);
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
     <>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="head-text">Activity</h1>
-        {hasUnread && <MarkAllReadButton />}
-      </div>
+      <PageHeader
+        icon="heart"
+        title="Activity"
+        subtitle={
+          unreadCount > 0
+            ? `${unreadCount} unread on this page`
+            : "Replies, likes and community posts"
+        }
+        action={unreadCount > 0 ? <MarkAllReadButton /> : undefined}
+      />
 
-      <section className="mt-10 flex flex-col gap-5">
+      <section className="stagger flex flex-col gap-2.5">
         {notifications.length > 0 ? (
           notifications.map((notification) => (
-            <NotificationCard key={notification.id} notification={notification} />
+            <NotificationCard
+              key={notification.id}
+              notification={notification}
+            />
           ))
         ) : (
-          <p className="!text-base-regular text-light-3">No activity yet</p>
+          <EmptyState
+            icon="heart"
+            title="No activity yet"
+            description="When someone replies to or likes your threads, it lands here."
+            action={{ label: "Write a thread", href: "/create-thread" }}
+          />
         )}
       </section>
 
@@ -75,33 +99,49 @@ function NotificationCard({ notification }: { notification: NotificationRow }) {
   if (!lead) return null;
 
   return (
-    <Link href={`/thread/${notification.threadId}`}>
-      <div
-        className={`activity-card flex items-center justify-between gap-3 ${
-          notification.unread ? "border-l-2 border-primary-500 pl-3" : ""
+    <Link href={`/thread/${notification.threadId}`} className="block">
+      <article
+        className={`activity-card group relative gap-3 ${
+          notification.unread ? "bg-brand/[0.04]" : ""
         }`}
       >
-        <article className="flex min-w-0 items-center gap-2">
-          <ActorAvatars actors={notification.actors} />
+        {/* Unread marker as a full-height gradient edge rather than a flat
+            border — it survives the card's rounded corners. */}
+        {notification.unread && (
+          <span
+            aria-label="Unread"
+            className="absolute inset-y-3 left-0 w-[3px] rounded-pill"
+            style={{
+              backgroundImage:
+                "linear-gradient(to bottom, hsl(var(--accent-violet)), hsl(var(--brand)))",
+            }}
+          />
+        )}
 
-          <p className="!text-small-regular min-w-0 text-light-1">
-            <Link href={`/profile/${lead.id}`} className="mr-1 text-primary-500">
-              {lead.name || lead.username}
-            </Link>
-            {rest.length > 0 && othersLabel(notification.actorCount)}{" "}
-            {VERBS[notification.kind]}
-            {notification.threadPreview && (
-              <span className="ml-1 text-light-3">
-                &ldquo;{truncate(notification.threadPreview, 48)}&rdquo;
-              </span>
-            )}
-          </p>
-        </article>
+        <ActorAvatars actors={notification.actors} />
 
-        <p className="shrink-0 text-[12px] text-light-3">
-          {formatDateString(notification.lastActorAt)}
+        <p className="min-w-0 flex-1 text-small-regular text-fg-muted">
+          <span className="font-semibold text-fg">
+            {lead.name || lead.username}
+          </span>
+          {rest.length > 0 && othersLabel(notification.actorCount)}{" "}
+          {VERBS[notification.kind]}
+          {notification.threadPreview && (
+            <span className="text-fg-subtle">
+              {" "}
+              &ldquo;{truncate(notification.threadPreview, 48)}&rdquo;
+            </span>
+          )}
         </p>
-      </div>
+
+        <time
+          dateTime={notification.lastActorAt}
+          title={formatDateString(notification.lastActorAt)}
+          className="shrink-0 text-subtle-medium text-fg-subtle"
+        >
+          {formatRelativeTime(notification.lastActorAt)}
+        </time>
+      </article>
     </Link>
   );
 }
@@ -111,14 +151,18 @@ function ActorAvatars({ actors }: { actors: NotificationActor[] }) {
   return (
     <span className="flex shrink-0 items-center">
       {actors.map((actor, index) => (
-        <Image
+        <span
           key={`${actor.id}-${index}`}
-          src={actor.image}
-          alt=""
-          width={20}
-          height={20}
-          className={`rounded-full object-cover ${index > 0 ? "-ml-2" : ""}`}
-        />
+          className={index > 0 ? "-ml-2.5" : undefined}
+          style={{ zIndex: actors.length - index }}
+        >
+          <Avatar
+            src={actor.image}
+            alt={actor.name || actor.username}
+            size="sm"
+            className="ring-2 ring-surface"
+          />
+        </span>
       ))}
     </span>
   );

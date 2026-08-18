@@ -1,23 +1,31 @@
-import PostThread from '@/components/PostThread';
-import { fetchUser } from '@/lib/actions/user.action';
-import { currentUser } from '@clerk/nextjs'
-import { redirect } from 'next/navigation';
-import React from 'react'
+import { currentUser } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
 
-const page = async() => {
-    const user = await currentUser();
-    if(!user) return null;
+import PageHeader from "@/components/PageHeader";
+import PostThread from "@/components/PostThread";
+import { fetchUser } from "@/lib/actions/user.action";
 
-    const userInfo = await fetchUser(user.id)
-    // Optional chaining: fetchUser returns null for a user with no document yet,
-    // which this page previously dereferenced straight into a crash.
-    if(!userInfo?.onboarded) redirect('/onboarding')
+export const metadata = { title: "Compose" };
+
+const Page = async () => {
+  const user = await currentUser();
+  if (!user) return null;
+
+  // Optional chaining: fetchUser returns null for a user with no document yet,
+  // which this page previously dereferenced straight into a crash.
+  const userInfo = await fetchUser(user.id);
+  if (!userInfo?.onboarded) redirect("/onboarding");
+
   return (
-   <>
-     <h1 className='head-text'>Create Thread</h1>
-     <PostThread userId={userInfo._id} />
-   </>
-  )
-}
+    <>
+      <PageHeader
+        icon="create"
+        title="Compose"
+        subtitle="Start a thread and pass it along"
+      />
+      <PostThread userId={userInfo._id} />
+    </>
+  );
+};
 
-export default page
+export default Page;
