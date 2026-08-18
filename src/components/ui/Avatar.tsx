@@ -13,8 +13,10 @@ const SIZES: Record<AvatarSize, { box: string; px: number }> = {
 };
 
 interface AvatarProps {
-  src: string;
-  alt: string;
+  /** May be empty or absent — a user record can carry no image. */
+  src?: string;
+  /** May be absent when the referenced user no longer exists. */
+  alt?: string;
   size?: AvatarSize;
   /** Wraps the image in the brand gradient halo. Used for the viewer's own avatar. */
   ring?: boolean;
@@ -51,7 +53,7 @@ function Avatar({
       {src ? (
         <Image
           src={src}
-          alt={alt}
+          alt={alt ?? ""}
           width={px}
           height={px}
           priority={priority}
@@ -63,7 +65,10 @@ function Avatar({
           className="flex h-full w-full items-center justify-center text-fg-subtle"
           style={{ fontSize: Math.round(px * 0.42) }}
         >
-          {alt.trim().charAt(0).toUpperCase() || "?"}
+          {/* A thread can outlive its author's record, so `alt` reaches here
+              undefined for a dangling reference. Calling .trim() on that threw
+              and took the whole feed down with it. */}
+          {(alt ?? "").trim().charAt(0).toUpperCase() || "?"}
         </span>
       )}
     </span>
