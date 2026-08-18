@@ -4,7 +4,7 @@
 # event contract straight out of src/ — one schema definition, not two that
 # drift. Build with:
 #
-#   docker build -f worker/Dockerfile -t threads-worker .
+#   docker build -f worker/Dockerfile -t relay-worker .
 
 FROM node:20-alpine AS deps
 WORKDIR /app

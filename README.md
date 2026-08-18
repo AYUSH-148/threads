@@ -1,4 +1,4 @@
-# 🧵 Threads – A Modern Social Media Platform
+# 🧵 Relay – A Modern Social Media Platform
 
 A full-stack **social networking application**: users create threads, tag each
 other, form organizations, and engage through likes, comments and shares.
@@ -285,8 +285,8 @@ What is covered:
 ### 1️⃣ Clone and install
 
 ```bash
-git clone https://github.com/AYUSH-148/threads.git
-cd threads
+git clone https://github.com/AYUSH-148/Relay.git
+cd Relay
 npm install
 ```
 

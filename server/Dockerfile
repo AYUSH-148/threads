@@ -4,7 +4,7 @@
 # notification queries and the Redis key names straight out of src/ — one
 # definition shared with the app and the worker, not three that drift. Build with:
 #
-#   docker build -f server/Dockerfile -t threads-api .
+#   docker build -f server/Dockerfile -t relay-api .
 
 FROM node:20-alpine AS deps
 WORKDIR /app

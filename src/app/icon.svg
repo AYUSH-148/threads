@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Tab icon. Next's App Router serves this in place of favicon.ico.
+    Solid fill with the chevrons knocked out in white, because the ring and
+    the baton dot from public/logo.svg close up at 16px.
+  -->
+  <defs>
+    <linearGradient id="relayIcon" x1="16" y1="0" x2="16" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DD7EFF" />
+      <stop offset="0.461458" stop-color="#685DFF" />
+      <stop offset="1" stop-color="#2152FF" />
+    </linearGradient>
+  </defs>
+  <circle cx="16" cy="16" r="16" fill="url(#relayIcon)" />
+  <path d="M9 10 L15 16 L9 22" stroke="#FFFFFF" stroke-width="3.4"
+    stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M17 10 L23 16 L17 22" stroke="#FFFFFF" stroke-width="3.4"
+    stroke-linecap="round" stroke-linejoin="round" />
+</svg>
