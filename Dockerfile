@@ -1,6 +1,6 @@
 # Web image: the Next.js app.
 #
-#   docker build -t threads-web \
+#   docker build -t relay-web \
 #     --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_… \
 #     --build-arg NEXT_PUBLIC_API_URL=http://localhost:4000 .
 #
